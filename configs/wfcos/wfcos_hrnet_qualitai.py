@@ -48,15 +48,19 @@ model = dict(
             use_sigmoid=True,
             gamma=2.0,
             alpha=0.25,
+            loss_weight=.1),
+        loss_bbox=dict(
+            type='IoULoss',
             loss_weight=1.0),
-        loss_bbox=dict(type='IoULoss', loss_weight=1.0),
         loss_energy=dict(
             type='FocalLoss',
             use_sigmoid=True,
-            loss_weight=1.
+            gamma=5.0,
+            loss_weight=4.0,
+            reduction='sum'
         ),
         split_convs=False,
-        r=500.
+        r=250.
     ))
 # training and testing settings
 train_cfg = dict(
@@ -77,7 +81,7 @@ test_cfg = dict(
     max_per_img=1000)
 # dataset settings
 dataset_type = 'QualitaiDataset'
-data_root = '/workspace/qualitai/'
+data_root = 'data/qualitai/'
 img_norm_cfg = dict(
     mean=[32.20495642019232, 31.513648345703196, 36.627047367261675],
     std=[34.395634168647526, 36.89673991173119, 38.85190978611362],
@@ -87,7 +91,6 @@ img_scale_test = (1024, 800)
 train_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(type='LoadAnnotations', with_bbox=True),
-    dict(type='RandomCrop', crop_size=(640, 800)),
     dict(type='Resize', img_scale=img_scale_train, keep_ratio=True),
     dict(type='RandomFlip', flip_ratio=0.5),
     dict(type='Normalize', **img_norm_cfg),
@@ -132,7 +135,7 @@ data = dict(
 # optimizer
 optimizer = dict(
     type='SGD',
-    lr=0.008,
+    lr=0.0008,
     momentum=0.9,
     weight_decay=0.0001,
     paramwise_options=dict(bias_lr_mult=2., bias_decay_mult=0.))
@@ -144,20 +147,29 @@ lr_config = dict(
     warmup_iters=500,
     warmup_ratio=1.0/3,
     step=[16, 22])
-checkpoint_config = dict(interval=5)
+checkpoint_config = dict(interval=1)
 # yapf:disable
 log_config = dict(
     interval=10,
     hooks=[
         dict(type='TextLoggerHook'),
-        dict(type='TensorboardLoggerHook')
+        dict(type='WandbLoggerHook')
     ])
 # yapf:enable
 # runtime settings
-total_epochs = 210
+total_epochs = 40
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
 work_dir = './work_dirs/qualitai'
-load_from = work_dir + '/latest.pth'
-resume_from = work_dir + '/latest.pth'
+load_from = None
+# load_from = work_dir + '/epoch_4.pth'
+resume_from = None
+# resume_from = work_dir + '/epoch_4.pth'
 workflow = [('train', 1)]
+
+# wandb settings
+wandb_cfg = dict(
+    entity='warp-net',
+    project='qualitai',
+    dryrun=False
+)

@@ -23,6 +23,7 @@ from ..utils import ConvModule, Scale, bias_init_with_prob
 import debugging.visualization_tools as vt
 from mmcv.visualization import imshow_det_bboxes
 from mmdet.core import tensor2imgs
+import numpy as np
 
 INF = 1e8
 
@@ -273,17 +274,40 @@ class WFCOSHead(nn.Module):
                 bbox_targets, label_targets, energy_targets, mask
             )
 
-        # Flatten energy
+        # Flatten energy.
         flat_energy_preds = [
             energy.permute(0, 2, 3, 1).reshape(-1, self.max_energy)
             for energy in energy_preds
         ]
-        flat_energy_targets = [energy.reshape(-1) for energy in energy_targets]
+        flat_energy_targets = [energy.reshape(-1)
+                               for energy in energy_targets]
+        flat_energy_targets = torch.cat(flat_energy_targets).to(
+            dtype=torch.long
+        )
+
+        # Calculate energy loss weights.
+        total_elements = flat_energy_targets.shape[0]
+        non_zero_elements = flat_energy_targets.nonzero()
+        num_nonzero_elements = non_zero_elements.shape[0]
+        num_zero_elements = total_elements - num_nonzero_elements
+
+        # Deal with edge case where there are either no non-zero elements or
+        # no zero elements.
+        if num_zero_elements == 0:
+            num_zero_elements = 1.
+        if num_nonzero_elements == 0:
+            num_nonzero_elements = 1.
+
+        energy_weights = torch.full([total_elements],
+                                    1 / num_zero_elements,
+                                    device=flat_energy_targets.device)
+        energy_weights[non_zero_elements] = 1 / num_nonzero_elements
 
         # Then calculate energy losses.
         loss_energy = self.loss_energy(
             torch.cat(flat_energy_preds),
-            torch.cat(flat_energy_targets).to(dtype=torch.long)
+            flat_energy_targets + 1,
+            weight=energy_weights
         )
 
         # Only consider loss for bboxes and labels_list at positions where the
@@ -436,10 +460,10 @@ class WFCOSHead(nn.Module):
             image_bboxes = []
             image_masks = []
             for j, feat_level_bboxes in enumerate(bboxes):
-                img_size = img_metas[i]['pad_shape']
+                img_shape = img_metas[i]['pad_shape']
 
                 feature_energy = self.get_energy_single(feat_dims[j],
-                                                        img_size,
+                                                        img_shape,
                                                         feat_level_bboxes)
                 image_energy.append(feature_energy.values)
                 # Using the image_energy, create a mask of background areas.
@@ -515,31 +539,38 @@ class WFCOSHead(nn.Module):
         # size for each level should be [prev_regress_range, regress_range).
         # e.g. If we have ranges((-1, 4), (4, 8), (8, INF)), then we have edge
         # sizes [-1, 4), [4, 8), [8, INF)
-        #
-        # First split the max_indices tensor based on the values
-        level_max_edge_lengths = [regress_range[0] for regress_range in
-                                  self.regress_ranges]
 
         split_inds = []
         for max_index in max_indices:
             indices = []
-            for length in level_max_edge_lengths:
-                val = (max_index[1] > length).nonzero()
+            for min_length, max_length in self.regress_ranges:
+                val = max_index[1]
+                val = (min_length <= val) * (val < max_length)
+                val = val.nonzero()
                 if val.nelement() != 0:
-                    val = val[0].item()
+                    val = val[-1].item()
                 else:
-                    val = indices[-1] if len(indices) > 0 else 0
+                    val = None
                 indices.append(val)
-
-            indices.append(len(max_index[1]))
 
             # indices is now the indices of the elements as split by max_edge,
             # split properly into each feature level.
             #
             # We now split the actual bboxes into the values
-            split_inds.append([max_index[0][indices[i]:indices[i + 1]]
-                               for i in range(len(indices) - 1)])
+            end = 0
+            temp_inds = []
+            for i in range(len(indices)):
+                if indices[i] is None:
+                    temp_inds.append(
+                        torch.empty(0, device=max_indices[0][1].device)
+                    )
+                    continue
 
+                start = end
+                end = indices[i] + 1
+                temp_inds.append(max_index[0][start:end])
+
+            split_inds.append(temp_inds)
             # split_bbox_ind is appended an s length list, where each element
             # contains all the indices that belong to that feature level.
 
@@ -776,7 +807,7 @@ class WFCOSHead(nn.Module):
                 img_bbox_preds.append(bbox_preds[i][img_id].detach())
                 img_energy_preds.append(energy_preds[i][img_id].detach())
 
-            img_shape = img_metas[img_id]['img_shape']
+            img_shape = img_metas[img_id]['pad_shape']
             scale_factor = img_metas[img_id]['scale_factor']
 
             det_bboxes = self.get_bboxes_image(img_label_preds,
@@ -917,11 +948,12 @@ class WFCOSHead(nn.Module):
                 ndarray with shape (w, h, 3) and dtype 'uint8'.
         """
         vis = dict()
+        class_with_bg = ['background'] + list(class_names)
 
         # Get only the first input image
         img = tensor2imgs(input_img[0].unsqueeze(0),
                           **self.last_vals['img_metas']['img_norm_cfg'])[0]
-        img_shape = self.last_vals['img_metas']['img_shape']
+        img_shape = self.last_vals['img_metas']['pad_shape']
         scale_factor = self.last_vals['img_metas']['scale_factor']
 
         self.last_vals['gt_labels'] -= 1
@@ -951,8 +983,8 @@ class WFCOSHead(nn.Module):
             img=img.copy(),
             bboxes=det_bboxes.cpu().numpy(),
             labels=det_labels.cpu().numpy().astype(int),
-            class_names=class_names,
-            score_thr=0.,
+            class_names=class_with_bg,
+            score_thr=test_cfg.score_thr,
             show=False,
             ret=True
         )
@@ -989,13 +1021,16 @@ class WFCOSHead(nn.Module):
                                         class_names,
                                         vt.get_present_classes(np_arrays['lt']))
         vis['lp'] = vt.add_class_legend(vis['lp'],
-                                        class_names,
+                                        class_with_bg,
                                         vt.get_present_classes(np_arrays['lp']))
 
+        empty_img = np.full_like(vis['img_gt'], 255)
         stitched = vt.stitch_big_image([
-                [vis['img_gt'], vis['et'], vis['lt']],
-                [vis['img_pred'], vis['ep'], vis['lp']]
-            ])
+            [vis['img_gt'], vis['et']],
+            [vis['img_pred'], vis['ep']],
+            [vis['lt'], empty_img],
+            [vis['lp'], empty_img]
+        ])
 
         # Image.fromarray(stitched).save('/workspace/test.png')
 
