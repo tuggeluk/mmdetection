@@ -48,15 +48,19 @@ model = dict(
             use_sigmoid=True,
             gamma=2.0,
             alpha=0.25,
+            loss_weight=.1),
+        loss_bbox=dict(
+            type='IoULoss',
             loss_weight=1.0),
-        loss_bbox=dict(type='IoULoss', loss_weight=1.0),
         loss_energy=dict(
             type='FocalLoss',
             use_sigmoid=True,
-            loss_weight=1.
+            gamma=5.0,
+            loss_weight=4.0,
+            reduction='sum'
         ),
         split_convs=False,
-        r=500.
+        r=250.
     ))
 # training and testing settings
 train_cfg = dict(
@@ -150,7 +154,6 @@ log_config = dict(
     interval=30,
     hooks=[
         dict(type='TextLoggerHook'),
-        #dict(type='TensorboardLoggerHook')
         dict(type='WandbLoggerHook')
     ])
 # yapf:enable
@@ -161,4 +164,12 @@ log_level = 'INFO'
 work_dir = './work_dirs/wfcos_hrnet_ds_dense_extended_line/'
 load_from = None
 resume_from = None
-workflow = [('train', 3)]
+# resume_from = work_dir + '/epoch_4.pth'
+workflow = [('train', 1)]
+
+# wandb settings
+wandb_cfg = dict(
+    entity='warp-net',
+    project='deepscores',
+    dryrun=False
+)
