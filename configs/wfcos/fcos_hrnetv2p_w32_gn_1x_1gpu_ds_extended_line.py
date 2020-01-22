@@ -75,12 +75,12 @@ img_norm_cfg = dict(
     mean=[240.15232515949037, 240.15229097456378, 240.15232515949037],
     std=[57.178083212078896, 57.178143244444556, 57.178083212078896],
     to_rgb=False)
-img_scale_train = (2000, 3000)
+img_scale_train = (200, 300)
 img_scale_test = (3000, 3828)
 train_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(type='LoadAnnotations', with_bbox=True),
-    dict(type='RandomCrop', crop_size=(2000, 3000)),
+    dict(type='RandomCrop', crop_size=(200, 300)),
     dict(type='Resize', img_scale=img_scale_train, keep_ratio=True),
     dict(type='RandomFlip', flip_ratio=0),
     dict(type='Normalize', **img_norm_cfg),
@@ -143,7 +143,7 @@ log_config = dict(
     interval=30,
     hooks=[
         dict(type='TextLoggerHook'),
-        #dict(type='TensorboardLoggerHook')
+        dict(type='TensorboardLoggerHook'),
         dict(type='WandbLoggerHook')
     ])
 # yapf:enable
@@ -155,3 +155,10 @@ work_dir = './work_dirs/fcos_hrnetv2p_w32_gn_1x_4gpu_ds_dense_extended_line/'
 load_from = work_dir + "latest.pth"
 resume_from = work_dir + "latest.pth"
 workflow = [('train', 3)]
+
+# wandb settings
+wandb_cfg = dict(
+    entity='warp-net',
+    project='deepscores-fcos',
+    dryrun=False
+)

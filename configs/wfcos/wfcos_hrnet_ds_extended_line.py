@@ -86,12 +86,12 @@ img_norm_cfg = dict(
     mean=[240.15232515949037, 240.15229097456378, 240.15232515949037],
     std=[57.178083212078896, 57.178143244444556, 57.178083212078896],
     to_rgb=False)
-img_scale_train = (2000, 3000)
+img_scale_train = (500, 500)
 img_scale_test = (3000, 3828)
 train_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(type='LoadAnnotations', with_bbox=True),
-    dict(type='RandomCrop', crop_size=(2000, 3000)),
+    dict(type='RandomCrop', crop_size=(500, 500)),
     dict(type='Resize', img_scale=img_scale_train, keep_ratio=True),
     dict(type='RandomFlip', flip_ratio=0),
     dict(type='Normalize', **img_norm_cfg),
@@ -136,11 +136,14 @@ data = dict(
 # optimizer
 optimizer = dict(
     type='SGD',
-    lr=0.02,
+    lr=0.01,
     momentum=0.9,
     weight_decay=0.0001,
     paramwise_options=dict(bias_lr_mult=2., bias_decay_mult=0.))
-optimizer_config = dict(grad_clip=None)
+optimizer_config = dict(
+     grad_clip=dict(
+         max_norm=5.
+     ))
 # learning policy
 lr_config = dict(
     policy='step',
@@ -154,6 +157,7 @@ log_config = dict(
     interval=30,
     hooks=[
         dict(type='TextLoggerHook'),
+        dict(type='TensorboardLoggerHook'),
         dict(type='WandbLoggerHook')
     ])
 # yapf:enable
