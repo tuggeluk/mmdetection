@@ -37,7 +37,7 @@ model = dict(
         num_outs=5),
     bbox_head=dict(
         type='WFCOSHead',
-        num_classes=80,
+        num_classes=81,
         in_channels=256,
         max_energy=20,
         stacked_convs=4,
@@ -159,7 +159,7 @@ log_config = dict(
     ])
 # yapf:enable
 # runtime settings
-total_epochs = 210
+total_epochs = 40
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
 work_dir = './work_dirs/wfcos_hrnet_coco'
@@ -171,6 +171,7 @@ workflow = [('train', 1)]
 
 # wandb settings
 wandb_cfg = dict(
-    project='coco',
+    entity='warp-net',
+    project='fcos-wfcos-baseline',
     dryrun=False
 )

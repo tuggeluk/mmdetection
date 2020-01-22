@@ -807,8 +807,10 @@ class WFCOSHead(nn.Module):
                 img_bbox_preds.append(bbox_preds[i][img_id].detach())
                 img_energy_preds.append(energy_preds[i][img_id].detach())
 
-            img_shape = img_metas[img_id]['pad_shape']
-            scale_factor = img_metas[img_id]['scale_factor']
+            img_shape = img_metas[img_id]['img_shape']
+            ori_shape = img_metas[img_id]['ori_shape']
+            scale_factor = (img_shape[0] / ori_shape[0],
+                            img_shape[1] / ori_shape[1])
 
             det_bboxes = self.get_bboxes_image(img_label_preds,
                                                img_bbox_preds,
@@ -842,9 +844,9 @@ class WFCOSHead(nn.Module):
             img_bbox_preds (list): List of feature-level bbox tensors.
             img_energy_preds (list): List of feature-level energy tensors.
             img_shape (tuple): (h, w) Tuple representing image size.
-            feat_level_points (list): List of feature level points for each
-                grid position.
-            scale_factor (float): The scaling factor of the image.
+            feat_level_points (list or tuple): List of feature level points for
+                each grid position.
+            scale_factor (tuple): The scaling factor (w, h) of the image.
             cfg (ConfigDict): The configuration used.
             rescale (None or bool): Whether or not the image has been rescaled.
 
@@ -890,7 +892,7 @@ class WFCOSHead(nn.Module):
                                       device=label_preds.device)
             ar = torch.arange(0, label_preds.shape[0], dtype=torch.long,
                               device=label_preds.device)
-            label_preds = (label_preds).to(dtype=torch.long)
+            label_preds = label_preds.argmax(1).to(dtype=torch.long) + 1
 
             # Set the value of each element at the class it's predicted
             # to be to the energy value
@@ -908,7 +910,10 @@ class WFCOSHead(nn.Module):
         feat_bboxes = torch.cat(feat_bboxes)
 
         if rescale:
-            feat_bboxes /= feat_bboxes.new_tensor(scale_factor)
+            feat_bboxes /= torch.tensor([scale_factor[0], scale_factor[1],
+                                         scale_factor[0], scale_factor[1]],
+                                        dtype=feat_bboxes.dtype,
+                                        device=feat_bboxes.device)
 
         feat_scores = torch.cat(feat_scores)
 
@@ -960,8 +965,10 @@ class WFCOSHead(nn.Module):
         # Get only the first input image
         img = tensor2imgs(input_img[0].unsqueeze(0),
                           **self.last_vals['img_metas']['img_norm_cfg'])[0]
-        img_shape = self.last_vals['img_metas']['pad_shape']
-        scale_factor = self.last_vals['img_metas']['scale_factor']
+        img_shape = self.last_vals['img_metas']['img_shape']
+        ori_shape = self.last_vals['img_metas']['ori_shape']
+        scale_factor = (img_shape[0] / ori_shape[0],
+                        img_shape[1] / ori_shape[1])
 
         self.last_vals['gt_labels'] -= 1
 
