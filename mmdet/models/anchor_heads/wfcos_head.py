@@ -24,6 +24,7 @@ import debugging.visualization_tools as vt
 from mmcv.visualization import imshow_det_bboxes
 from mmdet.core import tensor2imgs
 import numpy as np
+from PIL import Image
 
 INF = 1e8
 
@@ -972,7 +973,8 @@ class WFCOSHead(nn.Module):
 
         self.last_vals['gt_labels'] -= 1
 
-        vis['img_gt'] = imshow_det_bboxes(
+        # Get the ground truth bounding boxes
+        img_gt = imshow_det_bboxes(
             img=img.copy(),
             bboxes=self.last_vals['bbox_targets'].cpu().numpy(),
             labels=(self.last_vals['gt_labels']).cpu().numpy().astype(int),
@@ -981,7 +983,11 @@ class WFCOSHead(nn.Module):
             ret=True
         )
 
-        # Get image with predicted bboxes
+        # Now resize it to the original image size
+        vis['img_gt'] = np.array(Image.fromarray(img_gt)
+                                 .resize((ori_shape[1], ori_shape[0])))
+
+        # Get predicted bboxes
         det_bboxes, det_labels = self.get_bboxes_image(
             img_bbox_preds=[x.permute(2, 0, 1)
                             for x in self.last_vals['bbox_preds']],
@@ -993,8 +999,15 @@ class WFCOSHead(nn.Module):
             cfg=test_cfg,
             rescale=(scale_factor != 1)
         )
+
+        # We do this to recreate the original image
+        ori_img = np.array(Image.fromarray(img.copy())
+                           .crop((0, 0, img_shape[1], img_shape[0]))
+                           .resize((ori_shape[1], ori_shape[0])))
+
+        # Get image
         vis['img_pred'] = imshow_det_bboxes(
-            img=img.copy(),
+            img=ori_img,
             bboxes=det_bboxes.cpu().numpy(),
             labels=det_labels.cpu().numpy().astype(int),
             class_names=class_with_bg,
@@ -1025,10 +1038,10 @@ class WFCOSHead(nn.Module):
             np_arrays['lp'].append(lp)
 
         # Turn the image pyarmid into one long image
-        vis['et'] = vt.image_pyramid(vis['et'], img.shape[:-1])
-        vis['ep'] = vt.image_pyramid(vis['ep'], img.shape[:-1])
-        vis['lt'] = vt.image_pyramid(vis['lt'], img.shape[:-1])
-        vis['lp'] = vt.image_pyramid(vis['lp'], img.shape[:-1])
+        vis['et'] = vt.image_pyramid(vis['et'], ori_img.shape[:-1])
+        vis['ep'] = vt.image_pyramid(vis['ep'], ori_img.shape[:-1])
+        vis['lt'] = vt.image_pyramid(vis['lt'], ori_img.shape[:-1])
+        vis['lp'] = vt.image_pyramid(vis['lp'], ori_img.shape[:-1])
 
         # Add legends for the labels
         vis['lt'] = vt.add_class_legend(vis['lt'],
