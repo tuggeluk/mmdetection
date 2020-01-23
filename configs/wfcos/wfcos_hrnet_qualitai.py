@@ -166,9 +166,9 @@ dist_params = dict(backend='nccl')
 log_level = 'INFO'
 work_dir = './work_dirs/qualitai'
 load_from = None
-# load_from = work_dir + '/epoch_4.pth'
+# load_from = work_dir + '/latest.pth'
 resume_from = None
-# resume_from = work_dir + '/epoch_4.pth'
+# resume_from = work_dir + '/latest.pth'
 workflow = [('train', 1)]
 
 # wandb settings
