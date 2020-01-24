@@ -39,7 +39,7 @@ model = dict(
         type='WFCOSHead',
         num_classes=2,
         in_channels=256,
-        max_energy=20,
+        max_energy="max_energy",               ####################
         stacked_convs=4,
         feat_channels=256,
         strides=[8, 16, 32, 64, 128],
@@ -48,20 +48,20 @@ model = dict(
             use_sigmoid=True,
             gamma=2.0,
             alpha=0.25,
-            loss_weight=.1),
+            loss_weight="loss_cls_weight"),    ####################
         loss_bbox=dict(
             type='IoULoss',
-            loss_weight=1.),
+            loss_weight="loss_bbox_weight"),   ####################
         loss_energy=dict(
             type='FocalLoss',
             use_sigmoid=True,
-            gamma=5.0,
-            alpha=0.25,
-            loss_weight=4.0,
+            gamma="loss_energy_gamma",         ####################
+            alpha="loss_energy_alpha",         ####################
+            loss_weight="loss_energy_weight",  ####################
             reduction='sum'
         ),
         split_convs=False,
-        r=250.
+        r="r_val"                              ####################
     ))
 # training and testing settings
 train_cfg = dict(
@@ -82,7 +82,7 @@ test_cfg = dict(
     max_per_img=1000)
 # dataset settings
 dataset_type = 'QualitaiDataset'
-data_root = 'data/qualitai/'
+data_root = '/workspace/data/qualitai/'
 img_norm_cfg = dict(
     mean=[32.20495642019232, 31.513648345703196, 36.627047367261675],
     std=[34.395634168647526, 36.89673991173119, 38.85190978611362],
@@ -117,7 +117,7 @@ test_pipeline = [
 ]
 data = dict(
     imgs_per_gpu=4,
-    workers_per_gpu=4,
+    workers_per_gpu=0,
     train=dict(
         type=dataset_type,
         ann_file=data_root + 'qualitai_training_bad.json',
@@ -136,10 +136,14 @@ data = dict(
 # optimizer
 optimizer = dict(
     type='SGD',
-    lr=0.0008,
+    lr="lr",                                   ####################
     momentum=0.9,
     weight_decay=0.0001,
-    paramwise_options=dict(bias_lr_mult=2., bias_decay_mult=0.))
+    paramwise_options=dict(
+        bias_lr_mult=2.,
+        bias_decay_mult=0.
+    )
+)
 optimizer_config = dict(
     grad_clip=dict(
         max_norm=4.
@@ -148,9 +152,9 @@ optimizer_config = dict(
 # learning policy
 lr_config = dict(
     policy='step',
-    warmup='constant',
-    warmup_iters=500,
-    warmup_ratio=1.0/3,
+    warmup="lr_warmup",                        ####################
+    warmup_iters="lr_warmup_iters",            ####################
+    warmup_ratio="lr_warmup_ratio",            ####################
     step=[16, 22])
 checkpoint_config = dict(interval=1)
 # yapf:disable
