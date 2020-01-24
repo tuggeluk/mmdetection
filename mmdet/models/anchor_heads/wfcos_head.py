@@ -1029,10 +1029,12 @@ class WFCOSHead(nn.Module):
             lt = lt.cpu().numpy().astype(int)
             lp = lp.permute(1, 2, 0).argmax(2).cpu().numpy().astype(int)
 
-            vis['et'].append(vt.map_color_values(et, self.max_energy))
-            vis['ep'].append(vt.map_color_values(ep, self.max_energy))
-            vis['lt'].append(vt.map_color_values(lt, self.cls_out_channels))
-            vis['lp'].append(vt.map_color_values(lp, self.cls_out_channels))
+            vis['et'].append(vt.map_color_values(et, self.max_energy, False))
+            vis['ep'].append(vt.map_color_values(ep, self.max_energy, False))
+            vis['lt'].append(vt.map_color_values(lt, self.cls_out_channels,
+                                                 True))
+            vis['lp'].append(vt.map_color_values(lp, self.cls_out_channels,
+                                                 True))
 
             np_arrays['lt'].append(lt)
             np_arrays['lp'].append(lp)
