@@ -81,7 +81,7 @@ test_cfg = dict(
     max_per_img=1000)
 # dataset settings
 dataset_type = 'QualitaiDataset'
-data_root = 'data/qualitai/'
+data_root = '/workspace/data/qualitai/'
 img_norm_cfg = dict(
     mean=[32.20495642019232, 31.513648345703196, 36.627047367261675],
     std=[34.395634168647526, 36.89673991173119, 38.85190978611362],
@@ -165,8 +165,8 @@ total_epochs = 40
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
 work_dir = './work_dirs/qualitai'
-# load_from = None
-load_from = work_dir + '/latest.pth'
+load_from = None
+# load_from = work_dir + '/latest.pth'
 resume_from = None
 # resume_from = work_dir + '/latest.pth'
 workflow = [('train', 1)]
@@ -175,5 +175,5 @@ workflow = [('train', 1)]
 wandb_cfg = dict(
     entity='warp-net',
     project='qualitai',
-    dryrun=True
+    dryrun=False
 )
