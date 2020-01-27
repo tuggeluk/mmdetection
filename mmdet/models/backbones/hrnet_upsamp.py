@@ -295,7 +295,7 @@ class HRNet_upsamp(nn.Module):
 
         self.add_module(self.norm2_name, norm2)
         self.relu = nn.ReLU(inplace=True)
-        self.do_upsample = nn.Upsample(scale_factor=2,mode='bilinear')
+        #self.do_upsample = nn.Upsample(scale_factor=2,mode='bilinear')
         # stage 1
         self.stage1_cfg = self.extra['stage1']
         num_channels = self.stage1_cfg['num_channels'][0]
@@ -335,10 +335,10 @@ class HRNet_upsamp(nn.Module):
         deconv_cfg["NUM_CHANNELS"] = [32,64,128,256]
         deconv_cfg["NUM_DECONVS"] = 1
         deconv_cfg["KERNEL_SIZE"] =[3,3,3,3]
-        deconv_cfg["NUM_BASIC_BLOCKS"] = 4
-        #self.num_deconvs = len(pre_stage_channels) #deconv_cfg["NUM_DECONVS"]
-        #self.deconv_layers = self._make_deconv_layers(
-        #    deconv_cfg, pre_stage_channels)
+        deconv_cfg["NUM_BASIC_BLOCKS"] = 0
+        self.num_deconvs = len(pre_stage_channels) #deconv_cfg["NUM_DECONVS"]
+        self.deconv_layers = self._make_deconv_layers(
+           deconv_cfg, pre_stage_channels)
 						
         #self.upsample = nn.Upsample(scale_factor=2,mode='bilinear')
         self.stage4_cfg = self.extra['stage4']
@@ -617,8 +617,8 @@ class HRNet_upsamp(nn.Module):
             else:
                 x_list.append(y_list[i])
         y_list = self.stage3(x_list)
-        #for ikj in range(len(y_list)):
-        #    y_list[ikj]=self.deconv_layers[ikj](y_list[ikj])
+        for ikj in range(len(y_list)):
+           y_list[ikj]=self.deconv_layers[ikj](y_list[ikj])
         x_list = []
         for i in range(self.stage4_cfg['num_branches']):
             if self.transition3[i] is not None:

@@ -86,12 +86,12 @@ img_norm_cfg = dict(
     mean=[240.15232515949037, 240.15229097456378, 240.15232515949037],
     std=[57.178083212078896, 57.178143244444556, 57.178083212078896],
     to_rgb=False)
-img_scale_train = (600, 2000)
+img_scale_train = (1000, 2000)
 img_scale_test = (3000, 3828)
 train_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(type='LoadAnnotations', with_bbox=True),
-    dict(type='RandomCrop', crop_size=(600, 2000)),
+    dict(type='RandomCrop', crop_size=(1000, 2000)),
     dict(type='Resize', img_scale=img_scale_train, keep_ratio=True),
     dict(type='RandomFlip', flip_ratio=0),
     dict(type='Normalize', **img_norm_cfg),
