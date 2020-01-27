@@ -146,8 +146,14 @@ def main(arguments):
     for process in processes:
         process.wait()
         if process.returncode != 0:
+            returncode = process.returncode
+            for p in processes:
+                try:
+                    p.terminate()
+                except:
+                    pass
             raise subprocess.CalledProcessError(
-                returncode=process.returncode,
+                returncode=returncode,
                 cmd=cmd)
 
 
