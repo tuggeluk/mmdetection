@@ -12,7 +12,7 @@ from PIL import Image
 from math import floor, ceil
 
 from debugging.coco_dataset import CocoDetection
-from debugging.colormapping import map_color_values
+from debugging.visualization_tools import map_color_values
 from debugging.bbox import BoundingBox
 from debugging import draw_boxes
 

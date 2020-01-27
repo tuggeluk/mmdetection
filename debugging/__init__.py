@@ -1,6 +1,6 @@
 from PIL import ImageDraw, ImageFont
 from .classes_lookup import *
-from .colormapping import map_color_value
+from .visualization_tools import map_color_value
 from .constants import *
 
 from os import getcwd

@@ -1,11 +1,6 @@
 import numpy as np
 from PIL import Image, ImageDraw
-import colorcet as cc
-
-
-# So we only have to do this once
-CATEGORICAL = (np.array(cc.glasbey_bw) * 255).astype('uint8')
-CONTINUOUS = (np.array(cc.linear_kryw_0_100_c71) * 255).astype('uint8')
+from .colors import *
 
 
 def colorize_class_preds(class_maps, no_classes):
