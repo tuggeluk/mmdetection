@@ -3,7 +3,7 @@ model = dict(
     type='WFCOS',
     pretrained='open-mmlab://msra/hrnetv2_w32',
     backbone=dict(
-        type='HRNet',
+        type='HRNet_upsamp',
         extra=dict(
             stage1=dict(
                 num_modules=1,
@@ -36,7 +36,7 @@ model = dict(
         stride=2,
         num_outs=5),
     bbox_head=dict(
-        type='WFCOSHead_regression',
+        type='WFCOSHead',
         num_classes=124,
         in_channels=256,
         max_energy=20,
@@ -48,19 +48,18 @@ model = dict(
             use_sigmoid=True,
             gamma=2.0,
             alpha=0.25,
-            loss_weight=.1),
+            loss_weight=1.0),
         loss_bbox=dict(
             type='IoULoss',
-            loss_weight=1.0),
+            loss_weight=0.5),
         loss_energy=dict(
             type='FocalLoss',
             use_sigmoid=True,
             gamma=5.0,
-            loss_weight=4.0,
+            loss_weight=10.0,
             reduction='sum'
         ),
-        split_convs=True,
-        assign="min_edge",
+        split_convs=False,
         r=1.
     ))
 # training and testing settings
@@ -87,12 +86,12 @@ img_norm_cfg = dict(
     mean=[240.15232515949037, 240.15229097456378, 240.15232515949037],
     std=[57.178083212078896, 57.178143244444556, 57.178083212078896],
     to_rgb=False)
-img_scale_train = (2000, 1000)
+img_scale_train = (600, 2000)
 img_scale_test = (3000, 3828)
 train_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(type='LoadAnnotations', with_bbox=True),
-    dict(type='RandomCrop', crop_size=(2000, 1000)),
+    dict(type='RandomCrop', crop_size=(600, 2000)),
     dict(type='Resize', img_scale=img_scale_train, keep_ratio=True),
     dict(type='RandomFlip', flip_ratio=0),
     dict(type='Normalize', **img_norm_cfg),
@@ -118,7 +117,7 @@ test_pipeline = [
 ]
 data = dict(
     imgs_per_gpu=1,
-    workers_per_gpu=0,
+    workers_per_gpu=1,
     train=dict(
         type=dataset_type,
         ann_file=data_root + 'deepscores_train.json',
@@ -137,7 +136,7 @@ data = dict(
 # optimizer
 optimizer = dict(
     type='SGD',
-    lr=0.01,
+    lr=0.05,
     momentum=0.9,
     weight_decay=0.0001,
     paramwise_options=dict(bias_lr_mult=2., bias_decay_mult=0.))
@@ -155,18 +154,18 @@ lr_config = dict(
 checkpoint_config = dict(interval=50)
 # yapf:disable
 log_config = dict(
-    interval=1,
+    interval=50,
     hooks=[
         dict(type='TextLoggerHook'),
         dict(type='TensorboardLoggerHook'),
-        #dict(type='WandbLoggerHook')
+        dict(type='WandbLoggerHook')
     ])
 # yapf:enable
 # runtime settings
 total_epochs = 1000
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = './work_dirs/wfcos_hrnet_ds_dense_extended_line/'
+work_dir = './work_dirs/wfcos_hrnet_ds_extended_line_upsamp/'
 load_from = None
 resume_from = None
 # resume_from = work_dir + '/epoch_4.pth'
