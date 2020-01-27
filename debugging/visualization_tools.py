@@ -1,11 +1,7 @@
 import numpy as np
 from PIL import Image, ImageDraw
-import colorcet as cc
+from .colors import *
 
-
-# So we only have to do this once
-CATEGORICAL = (np.array(cc.glasbey_bw) * 255).astype('uint8')
-CONTINUOUS = (np.array(cc.linear_kryw_0_100_c71) * 255).astype('uint8')
 
 def colorize_class_preds(class_maps, no_classes):
     # class maps are level-batch-class-H-W
@@ -84,7 +80,7 @@ def stitch_big_image(images_list):
                 images_list[ind] = np.concatenate([pad_ele, images_list[
                     ind]], 1)
 
-        return np.concatenate(images_list,0)
+        return np.concatenate(images_list, 0)
     else:
         # stitch horizontally
         stich_list = [stitch_big_image(im) for im in images_list]
@@ -151,6 +147,7 @@ def map_color_values(array, n, categorical):
 
     # Broadcast the array using the lookup table
     return colors[array]
+
 
 def map_color_value(value, n):
     """Converts colors.
