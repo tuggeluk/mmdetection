@@ -1053,14 +1053,13 @@ class WFCOSHead(nn.Module):
                                         class_with_bg,
                                         vt.get_present_classes(np_arrays['lp']))
 
-        empty_img = np.full_like(vis['img_gt'], 255)
-        stitched = vt.stitch_big_image([
-            [vis['img_gt'], vis['et']],
-            [vis['img_pred'], vis['ep']],
-            [vis['lt'], empty_img],
-            [vis['lp'], empty_img]
-        ])
 
         # Image.fromarray(stitched).save('/workspace/test.png')
+        net_output = {'name': 'network_output',
+                      'image': [vis['img_gt'], vis['img_pred']]}
+        energy_maps = {'name': 'energy_maps',
+                       'image': vt.stitch_big_image([[vis['et']], [vis['ep']]])}
+        label_maps = {'name': 'label_maps',
+                      'image': vt.stitch_big_image([[vis['lt']], [vis['lp']]])}
 
-        return {"full_image": stitched}
+        return [net_output, energy_maps, label_maps]
