@@ -39,7 +39,7 @@ model = dict(
         type='WFCOSHead',
         num_classes=2,
         in_channels=256,
-        max_energy=20,
+        max_energy=72,
         stacked_convs=4,
         feat_channels=256,
         strides=[8, 16, 32, 64, 128],
@@ -48,19 +48,20 @@ model = dict(
             use_sigmoid=True,
             gamma=2.0,
             alpha=0.25,
-            loss_weight=.1),
+            loss_weight=1.987),
         loss_bbox=dict(
             type='IoULoss',
-            loss_weight=1.),
+            loss_weight=0.3194),
         loss_energy=dict(
             type='FocalLoss',
             use_sigmoid=True,
-            gamma=5.0,
-            loss_weight=4.0,
+            gamma=0.9334,
+            alpha=0.8586,
+            loss_weight=0.8586,
             reduction='sum'
         ),
         split_convs=False,
-        r=250.
+        r=210.
     ))
 # training and testing settings
 train_cfg = dict(
@@ -135,21 +136,21 @@ data = dict(
 # optimizer
 optimizer = dict(
     type='SGD',
-    lr=0.0008,
+    lr=0.02366,
     momentum=0.9,
     weight_decay=0.0001,
     paramwise_options=dict(bias_lr_mult=2., bias_decay_mult=0.))
 optimizer_config = dict(
     grad_clip=dict(
-        max_norm=2.
+        max_norm=4.
     )
 )
 # learning policy
 lr_config = dict(
     policy='step',
     warmup='constant',
-    warmup_iters=500,
-    warmup_ratio=1.0/3,
+    warmup_iters=695,
+    warmup_ratio=0.5188,
     step=[16, 22])
 checkpoint_config = dict(interval=1)
 # yapf:disable
@@ -161,14 +162,14 @@ log_config = dict(
     ])
 # yapf:enable
 # runtime settings
-total_epochs = 40
+total_epochs = 160
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
 work_dir = './work_dirs/qualitai'
-load_from = None
-# load_from = work_dir + '/latest.pth'
-resume_from = None
-# resume_from = work_dir + '/latest.pth'
+# load_from = None
+load_from = work_dir + '/latest.pth'
+# resume_from = None
+resume_from = work_dir + '/latest.pth'
 workflow = [('train', 1)]
 
 # wandb settings
