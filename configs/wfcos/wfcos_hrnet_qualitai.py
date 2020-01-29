@@ -158,14 +158,15 @@ log_config = dict(
     interval=10,
     hooks=[
         dict(type='TextLoggerHook'),
-        dict(type='WandbLoggerHook')
+        dict(type='WandbLoggerHook',
+             img_interval=5)
     ])
 # yapf:enable
 # runtime settings
 total_epochs = 40
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = './work_dirs/qualitai'
+work_dir = './work_dirs/qualitai_test'
 load_from = None
 # load_from = work_dir + '/latest.pth'
 resume_from = None
@@ -175,6 +176,6 @@ workflow = [('train', 1)]
 # wandb settings
 wandb_cfg = dict(
     entity='warp-net',
-    project='qualitai',
+    project='qualitai_test',
     dryrun=False
 )
