@@ -335,7 +335,7 @@ class HRNet_upsamp(nn.Module):
         deconv_cfg["NUM_CHANNELS"] = [32,64,128,256]
         deconv_cfg["NUM_DECONVS"] = 1
         deconv_cfg["KERNEL_SIZE"] =[3,3,3,3]
-        deconv_cfg["NUM_BASIC_BLOCKS"] = 0
+        deconv_cfg["NUM_BASIC_BLOCKS"] = 1
         self.num_deconvs = len(pre_stage_channels) #deconv_cfg["NUM_DECONVS"]
         self.deconv_layers = self._make_deconv_layers(
            deconv_cfg, pre_stage_channels)

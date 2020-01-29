@@ -86,7 +86,7 @@ img_norm_cfg = dict(
     mean=[240.15232515949037, 240.15229097456378, 240.15232515949037],
     std=[57.178083212078896, 57.178143244444556, 57.178083212078896],
     to_rgb=False)
-img_scale_train = (1000, 2000)
+img_scale_train = (800, 2000)
 img_scale_test = (3000, 3828)
 train_pipeline = [
     dict(type='LoadImageFromFile'),
@@ -136,7 +136,7 @@ data = dict(
 # optimizer
 optimizer = dict(
     type='SGD',
-    lr=0.05,
+    lr=0.001,
     momentum=0.9,
     weight_decay=0.0001,
     paramwise_options=dict(bias_lr_mult=2., bias_decay_mult=0.))
