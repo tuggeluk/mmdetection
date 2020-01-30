@@ -40,7 +40,7 @@ parameters:
     max: 1
   lr:
     distribution: log_uniform
-    min: -18.420680743952367
+    min: -13.815510557964274
     max: -3.506557897319982
 early_terminate:
   type: hyperband

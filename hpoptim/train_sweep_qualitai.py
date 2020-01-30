@@ -90,7 +90,7 @@ def create_run_config(base_config, name,
 
 def main(arguments):
 
-    # world size in terms of number of processes
+    # world size in terms of number of processes/GPUs
     dist_world_size = torch.cuda.device_count()
 
     # set PyTorch distributed related environmental variables

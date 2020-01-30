@@ -1,5 +1,6 @@
 import os
 import os.path as osp
+from time import time
 
 import mmcv
 import numpy as np
@@ -120,7 +121,8 @@ class CocoDistEvalRecallHook(DistEvalHook):
 class CocoDistEvalmAPHook(DistEvalHook):
 
     def evaluate(self, runner, results):
-        tmp_file = osp.join(runner.work_dir, 'temp_0')
+        id = ''.join('{:.3f}'.format(time())[-7:].split('.'))
+        tmp_file = osp.join(runner.work_dir, id)
         result_files = results2json(self.dataset, results, tmp_file)
 
         res_types = ['bbox', 'segm'
