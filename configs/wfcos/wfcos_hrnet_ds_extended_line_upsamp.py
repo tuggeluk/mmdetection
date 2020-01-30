@@ -91,7 +91,7 @@ img_scale_test = (3000, 3828)
 train_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(type='LoadAnnotations', with_bbox=True),
-    dict(type='RandomCrop', crop_size=(1000, 2000)),
+    dict(type='RandomCrop', crop_size=(600, 600)),
     dict(type='Resize', img_scale=img_scale_train, keep_ratio=True),
     dict(type='RandomFlip', flip_ratio=0),
     dict(type='Normalize', **img_norm_cfg),
@@ -158,7 +158,7 @@ log_config = dict(
     hooks=[
         dict(type='TextLoggerHook'),
         dict(type='TensorboardLoggerHook'),
-        dict(type='WandbLoggerHook')
+        #dict(type='WandbLoggerHook')
     ])
 # yapf:enable
 # runtime settings
