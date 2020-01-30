@@ -724,19 +724,26 @@ class WFCOSHead(nn.Module):
                 y_dist = torch.abs((bbox_dist[1] - (2. * y_index[mask]
                                                     / y_scale_factor)) / 2)
 
+                if self.bbox_percent is not None:
+                    # distances relative to the bbox size
+                    bbox_size = torch.tensor((bbox[2]-bbox[0],
+                                              bbox[3]- bbox[1]),
+                                             **type_dict)
 
-                bbox_size = torch.tensor((bbox[2]-bbox[0],
-                                          bbox[3]- bbox[1]),
-                                         **type_dict)
-                # distances relative to the bbox size
-                x_dist = x_dist / bbox_size[0]
-                y_dist = y_dist / bbox_size[1]
+                    x_dist = x_dist / bbox_size[0]
+                    y_dist = y_dist / bbox_size[1]
 
                 # Multiplied by self is faster than tensor.pow(2) by about 30%
                 tot_dist = torch.sqrt((x_dist * x_dist) + (y_dist * y_dist))
 
-                val = 1 - (tot_dist / self.r)
-                val = torch.floor(val * self.max_energy)
+                if self.bbox_percent is not None:
+                    # energy marker based off bounding box size
+                    val = 1 - (tot_dist / self.bbox_percent)
+                    val = torch.floor(val * self.max_energy)
+                else:
+                    # energy marker based off fixed radius
+                    val = 1 - (tot_dist / self.r)
+                    val = torch.floor(val * self.max_energy)
 
                 # torch.max to eliminate negative numbers. torch.max is
                 # approximately 20 times faster than using indexing
