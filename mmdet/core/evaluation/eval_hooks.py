@@ -137,7 +137,7 @@ class CocoDistEvalmAPHook(DistEvalHook):
                 print('No prediction found.')
                 for i in range(len(metrics)):
                     key = '{}_{}'.format(res_type, metrics[i])
-                    val = '0.000'
+                    val = 0.000
                     runner.log_buffer.output[key] = val
                 runner.log_buffer.output['{}_mAP_copypaste'.format(res_type)] \
                     = ('0.000 0.000 0.000 0.000 0.000 0.000')
