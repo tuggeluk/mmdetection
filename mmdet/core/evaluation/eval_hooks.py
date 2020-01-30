@@ -127,11 +127,18 @@ class CocoDistEvalmAPHook(DistEvalHook):
                      ] if runner.model.module.with_mask else ['bbox']
         cocoGt = self.dataset.coco
         imgIds = cocoGt.getImgIds()
+        metrics = ['mAP', 'mAP_50', 'mAP_75', 'mAP_s', 'mAP_m', 'mAP_l']
         for res_type in res_types:
             try:
                 cocoDt = cocoGt.loadRes(result_files[res_type])
             except IndexError:
                 print('No prediction found.')
+                for i in range(len(metrics)):
+                    key = '{}_{}'.format(res_type, metrics[i])
+                    val = '0.000'
+                    runner.log_buffer.output[key] = val
+                runner.log_buffer.output['{}_mAP_copypaste'.format(res_type)]\
+                    = ('0.000 0.000 0.000 0.000 0.000 0.000')
                 break
             iou_type = res_type
             cocoEval = COCOeval(cocoGt, cocoDt, iou_type)
@@ -139,7 +146,6 @@ class CocoDistEvalmAPHook(DistEvalHook):
             cocoEval.evaluate()
             cocoEval.accumulate()
             cocoEval.summarize()
-            metrics = ['mAP', 'mAP_50', 'mAP_75', 'mAP_s', 'mAP_m', 'mAP_l']
             for i in range(len(metrics)):
                 key = '{}_{}'.format(res_type, metrics[i])
                 val = float('{:.3f}'.format(cocoEval.stats[i]))
