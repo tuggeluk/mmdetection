@@ -1,41 +1,19 @@
 import numpy as np
 from PIL import Image, ImageDraw
-
-
-COLOR_MAPPING = ('24100E',
-                 '321713',
-                 '401E1F',
-                 '4D262E',
-                 '58303E',
-                 '603B50',
-                 '654862',
-                 '665675',
-                 '636686',
-                 '5B7595',
-                 '5186A0',
-                 '4496A8',
-                 '39A5AC',
-                 '37B5AC',
-                 '43C4A7',
-                 '5AD1A0',
-                 '77DE96',
-                 '98EA8A',
-                 'BCF47F',
-                 'E2FD76')
+from .colors import *
 
 
 def colorize_class_preds(class_maps, no_classes):
     # class maps are level-batch-class-H-W
     np_arrays = []
     for lvl in class_maps:
-        lvl = map_color_values(lvl, no_classes)
+        lvl = map_color_values(lvl, no_classes, True)
         np_arrays.append(lvl)
 
     return np_arrays
 
 
 def normalize_centerness(center_maps):
-
     p_min = 1E6
     p_max = -1E6
     for lvl in center_maps:
@@ -51,6 +29,7 @@ def normalize_centerness(center_maps):
 
 
 def image_pyramid(pred_maps, target_size):
+    """Turns as series of images to a column of target_size images."""
     resized_imgs = []
     for lvl in pred_maps:
         lvl = lvl.astype(np.uint8)
@@ -62,10 +41,12 @@ def image_pyramid(pred_maps, target_size):
     img_cat = np.concatenate(resized_imgs)
     return img_cat.astype(np.uint8)
 
+
 def get_present_classes(classes_vis):
+    """Finds all classes that exist in a given picture."""
     unique_vals = []
     for vis in classes_vis:
-        if isinstance(vis,np.ndarray):
+        if isinstance(vis, np.ndarray):
             unique_vals.extend(np.unique(vis))
         else:
             unique_vals.extend(np.unique(vis.cpu().numpy()))
@@ -79,22 +60,27 @@ def get_present_classes(classes_vis):
     ret.sort()
     return ret
 
+
 def stitch_big_image(images_list):
+    """Stitches separate np.ndarray images into a single large array."""
     if isinstance(images_list[0], np.ndarray):
         # stitch vertically
         # stack to 3 channels if necessary
         max_len = 0
         for ind, ele in enumerate(images_list):
             if ele.shape[-1] == 1:
-                images_list[ind] = np.concatenate([ele, ele, ele],-1)
+                images_list[ind] = np.concatenate([ele, ele, ele], -1)
             if ele.shape[1] > max_len:
                 max_len = ele.shape[1]
         for ind, ele in enumerate(images_list):
-            if ele.shape[1]<max_len:
-                pad_ele = np.zeros((ele.shape[0],max_len-ele.shape[1],3),np.uint8)
-                images_list[ind] = np.concatenate([pad_ele,images_list[ind]], 1)
+            if ele.shape[1] < max_len:
+                pad_ele = np.zeros(
+                    (ele.shape[0], max_len-ele.shape[1], 3), np.uint8
+                )
+                images_list[ind] = np.concatenate([pad_ele, images_list[
+                    ind]], 1)
 
-        return np.concatenate(images_list,0)
+        return np.concatenate(images_list, 0)
     else:
         # stitch horizontally
         stich_list = [stitch_big_image(im) for im in images_list]
@@ -103,15 +89,15 @@ def stitch_big_image(images_list):
 
 
 def add_class_legend(img, classes, present_classes):
+    """Adds the class legend to the side of an image."""
     max_len = max([len(x) for x in classes])
     no_cl = len(classes)
 
     spacer = 20
     canv = np.ones((img.shape[0], 25 + max_len * 7, 3)) * 255
 
-
     for ind, cla in enumerate(present_classes):
-        col_block = map_color_values(np.ones((10, 10)) * cla, no_cl)
+        col_block = map_color_values(np.ones((10, 10)) * cla, no_cl, True)
         canv[ind * spacer + 10:ind * spacer + 20, 10:20] = col_block
     canv_img = Image.fromarray(canv.astype(np.uint8))
     draw = ImageDraw.Draw(canv_img)
@@ -128,7 +114,7 @@ def add_class_legend(img, classes, present_classes):
     return np.concatenate((canv, img), axis=1)
 
 
-def map_color_values(array, n):
+def map_color_values(array, n, categorical):
     """Maps values to RGB arrays.
 
     Shape:
@@ -137,46 +123,49 @@ def map_color_values(array, n):
     Args:
         array (np.ndarray): Array of values to map to colors.
         n (int or float): Number of categories to map.
+        categorical (bool): Whether or not to use a categorical mapping.
     """
-    out = np.empty((array.shape[0], array.shape[1], 3), dtype='uint8')
-    for i in range(array.shape[0]):
-        for j in range(array.shape[1]):
-            out[i][j] = map_color_value(array[i][j], n)
+    if categorical:
+        colors = CATEGORICAL
+        array = array.astype('uint8')
+        if n > 255:
+            # Fall back for more than 255 categories
+            out = np.empty((array.shape[0], array.shape[1], 3), dtype='uint8')
+            for i in range(array.shape[0]):
+                for j in range(array.shape[1]):
+                    out[i][j] = map_color_value(array[i][j], n)
+            return out.astype('uint8')
 
-    return out.astype('uint8')
+    else:
+        colors = CONTINUOUS
+
+        # Now normalize the arrays to values between [0, 255]
+        array = array.astype('float64')
+        array *= (255. / float(n))
+        array = np.clip(array, a_min=0, a_max=255)
+        array = array.astype('uint8')
+
+    # Broadcast the array using the lookup table
+    return colors[array]
 
 
 def map_color_value(value, n):
     """Converts colors.
-
     Maps a color between a value on the interval [0, n] to rgb values. Based
     on HSL. We choose a color by mapping the value x as a fraction of n to a
     value for hue on the interval [0, 360], with 0 = 0 and 1 = 360. This is
     then mapped using a standard HSL to RGB conversion with parameters S = 1,
     L = 0.5.
-
     Args:
         value (int or float): The value to be mapped. Must be in the range
             0 <= value <= n. If value = n, it is converted to 0.
         n (int or float): The maximum value corresponding to a hue of 360.
-
     Returns:
         np.ndarray: a numpy array representing RGB values.
     """
-    if value < 0:
-        return np.array([0, 0, 0]).astype(np.uint8)
-
     if value == n:
         value = 0
-
-    if n == 20:
-        # Use nicer color values
-        # First convert value to int
-        h = COLOR_MAPPING[int(value)]
-        return np.array([int(h[i:i + 2], 16) for i in (0, 2, 4)], dtype='uint8')
-
     multiplier = 360 / n
-
 
     hue = float(value) * float(multiplier)
 

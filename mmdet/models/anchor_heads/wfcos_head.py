@@ -24,6 +24,7 @@ import debugging.visualization_tools as vt
 from mmcv.visualization import imshow_det_bboxes
 from mmdet.core import tensor2imgs
 import numpy as np
+from PIL import Image
 
 INF = 1e8
 
@@ -842,8 +843,10 @@ class WFCOSHead(nn.Module):
                 img_bbox_preds.append(bbox_preds[i][img_id].detach())
                 img_energy_preds.append(energy_preds[i][img_id].detach())
 
-            img_shape = img_metas[img_id]['pad_shape']
-            scale_factor = img_metas[img_id]['scale_factor']
+            img_shape = img_metas[img_id]['img_shape']
+            ori_shape = img_metas[img_id]['ori_shape']
+            scale_factor = (img_shape[0] / ori_shape[0],
+                            img_shape[1] / ori_shape[1])
 
             det_bboxes = self.get_bboxes_image(img_label_preds,
                                                img_bbox_preds,
@@ -877,9 +880,9 @@ class WFCOSHead(nn.Module):
             img_bbox_preds (list): List of feature-level bbox tensors.
             img_energy_preds (list): List of feature-level energy tensors.
             img_shape (tuple): (h, w) Tuple representing image size.
-            feat_level_points (list): List of feature level points for each
-                grid position.
-            scale_factor (float): The scaling factor of the image.
+            feat_level_points (list or tuple): List of feature level points for
+                each grid position.
+            scale_factor (tuple): The scaling factor (w, h) of the image.
             cfg (ConfigDict): The configuration used.
             rescale (None or bool): Whether or not the image has been rescaled.
 
@@ -887,8 +890,7 @@ class WFCOSHead(nn.Module):
 
         """
         feat_bboxes = []
-        feat_labels = []
-        feat_energies = []
+        feat_scores = []
 
         for label_preds, bbox_preds, energy_preds, points in zip(
             img_label_preds, img_bbox_preds, img_energy_preds, feat_level_points
@@ -918,34 +920,45 @@ class WFCOSHead(nn.Module):
                 energy_preds = energy_preds[topk_inds]
                 label_preds = label_preds[topk_inds, :]
 
+            # Now create a (n, c) scores tensor where c is the number of
+            # classes
+            score_preds = torch.zeros(label_preds.shape[0],
+                                      self.num_classes,
+                                      dtype=torch.float,
+                                      device=label_preds.device)
+            ar = torch.arange(0, label_preds.shape[0], dtype=torch.long,
+                              device=label_preds.device)
+            label_preds = label_preds.argmax(1).to(dtype=torch.long) + 1
+
+            # Set the value of each element at the class it's predicted
+            # to be to the energy value
+            score_preds[ar, label_preds] = energy_preds
+
+            # If the energy is 0, set class 0 to 1.
+            zeros = (energy_preds == 0).nonzero().view(-1)
+            score_preds[zeros, 0] = 1.
+
             # Decode distance bbox to regular bbox
             bboxes = distance2bbox(points, bbox_preds, max_shape=img_shape)
             feat_bboxes.append(bboxes)
-            feat_labels.append(label_preds)
-            feat_energies.append(energy_preds)
+            feat_scores.append(score_preds)
 
         feat_bboxes = torch.cat(feat_bboxes)
 
         if rescale:
-            feat_bboxes /= feat_bboxes.new_tensor(scale_factor)
+            feat_bboxes /= torch.tensor([scale_factor[0], scale_factor[1],
+                                         scale_factor[0], scale_factor[1]],
+                                        dtype=feat_bboxes.dtype,
+                                        device=feat_bboxes.device)
 
-        # Since multiclass_nms requires a 0th class representing background
-        # which is then subsequently ignored, we add that here.
-        feat_labels = torch.cat(feat_labels)
-        padding = feat_labels.new_zeros((feat_labels.shape[0], 1))
-        feat_labels = torch.cat((padding, feat_labels), dim=1)
-
-        # multiclass_nms also requires a score_factors tensor, which is the
-        # feature energies (feat_energies) tensor.
-        feat_energies = torch.cat(feat_energies)
+        feat_scores = torch.cat(feat_scores)
 
         det_bboxes, det_labels = multiclass_nms(
             feat_bboxes,
-            feat_labels,
+            feat_scores,
             cfg.score_thr,
             cfg.nms,
-            cfg.max_per_img,
-            feat_energies
+            cfg.max_per_img
         )
         return det_bboxes, det_labels
 
@@ -988,12 +1001,15 @@ class WFCOSHead(nn.Module):
         # Get only the first input image
         img = tensor2imgs(input_img[0].unsqueeze(0),
                           **self.last_vals['img_metas']['img_norm_cfg'])[0]
-        img_shape = self.last_vals['img_metas']['pad_shape']
-        scale_factor = self.last_vals['img_metas']['scale_factor']
+        img_shape = self.last_vals['img_metas']['img_shape']
+        ori_shape = self.last_vals['img_metas']['ori_shape']
+        scale_factor = (img_shape[0] / ori_shape[0],
+                        img_shape[1] / ori_shape[1])
 
         self.last_vals['gt_labels'] -= 1
 
-        vis['img_gt'] = imshow_det_bboxes(
+        # Get the ground truth bounding boxes
+        img_gt = imshow_det_bboxes(
             img=img.copy(),
             bboxes=self.last_vals['bbox_targets'].cpu().numpy(),
             labels=(self.last_vals['gt_labels']).cpu().numpy().astype(int),
@@ -1002,7 +1018,11 @@ class WFCOSHead(nn.Module):
             ret=True
         )
 
-        # Get image with predicted bboxes
+        # Now resize it to the original image size
+        vis['img_gt'] = np.array(Image.fromarray(img_gt)
+                                 .resize((ori_shape[1], ori_shape[0])))
+
+        # Get predicted bboxes
         det_bboxes, det_labels = self.get_bboxes_image(
             img_bbox_preds=[x.permute(2, 0, 1)
                             for x in self.last_vals['bbox_preds']],
@@ -1014,8 +1034,15 @@ class WFCOSHead(nn.Module):
             cfg=test_cfg,
             rescale=(scale_factor != 1)
         )
+
+        # We do this to recreate the original image
+        ori_img = np.array(Image.fromarray(img.copy())
+                           .crop((0, 0, img_shape[1], img_shape[0]))
+                           .resize((ori_shape[1], ori_shape[0])))
+
+        # Get image
         vis['img_pred'] = imshow_det_bboxes(
-            img=img.copy(),
+            img=ori_img,
             bboxes=det_bboxes.cpu().numpy(),
             labels=det_labels.cpu().numpy().astype(int),
             class_names=class_with_bg,
@@ -1037,19 +1064,21 @@ class WFCOSHead(nn.Module):
             lt = lt.cpu().numpy().astype(int)
             lp = lp.permute(1, 2, 0).argmax(2).cpu().numpy().astype(int)
 
-            vis['et'].append(vt.map_color_values(et, self.max_energy))
-            vis['ep'].append(vt.map_color_values(ep, self.max_energy))
-            vis['lt'].append(vt.map_color_values(lt, self.cls_out_channels))
-            vis['lp'].append(vt.map_color_values(lp, self.cls_out_channels))
+            vis['et'].append(vt.map_color_values(et, self.max_energy, False))
+            vis['ep'].append(vt.map_color_values(ep, self.max_energy, False))
+            vis['lt'].append(vt.map_color_values(lt, self.cls_out_channels,
+                                                 True))
+            vis['lp'].append(vt.map_color_values(lp, self.cls_out_channels,
+                                                 True))
 
             np_arrays['lt'].append(lt)
             np_arrays['lp'].append(lp)
 
         # Turn the image pyarmid into one long image
-        vis['et'] = vt.image_pyramid(vis['et'], img.shape[:-1])
-        vis['ep'] = vt.image_pyramid(vis['ep'], img.shape[:-1])
-        vis['lt'] = vt.image_pyramid(vis['lt'], img.shape[:-1])
-        vis['lp'] = vt.image_pyramid(vis['lp'], img.shape[:-1])
+        vis['et'] = vt.image_pyramid(vis['et'], ori_img.shape[:-1])
+        vis['ep'] = vt.image_pyramid(vis['ep'], ori_img.shape[:-1])
+        vis['lt'] = vt.image_pyramid(vis['lt'], ori_img.shape[:-1])
+        vis['lp'] = vt.image_pyramid(vis['lp'], ori_img.shape[:-1])
 
         # Add legends for the labels
         vis['lt'] = vt.add_class_legend(vis['lt'],
@@ -1059,14 +1088,13 @@ class WFCOSHead(nn.Module):
                                         class_with_bg,
                                         vt.get_present_classes(np_arrays['lp']))
 
-        empty_img = np.full_like(vis['img_gt'], 255)
-        stitched = vt.stitch_big_image([
-            [vis['img_gt'], vis['et']],
-            [vis['img_pred'], vis['ep']],
-            [vis['lt'], empty_img],
-            [vis['lp'], empty_img]
-        ])
 
         # Image.fromarray(stitched).save('/workspace/test.png')
+        net_output = {'name': 'network_output',
+                      'image': [vis['img_gt'], vis['img_pred']]}
+        energy_maps = {'name': 'energy_maps',
+                       'image': vt.stitch_big_image([[vis['et']], [vis['ep']]])}
+        label_maps = {'name': 'label_maps',
+                      'image': vt.stitch_big_image([[vis['lt']], [vis['lp']]])}
 
-        return {"full_image": stitched}
+        return [net_output, energy_maps, label_maps]

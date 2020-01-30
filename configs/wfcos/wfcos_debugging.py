@@ -37,7 +37,7 @@ model = dict(
         num_outs=5),
     bbox_head=dict(
         type='WFCOSHead',
-        num_classes=2,
+        num_classes=81,
         in_channels=256,
         max_energy=20,
         stacked_convs=4,
@@ -57,7 +57,7 @@ model = dict(
             loss_weight=10.,
             reduction='sum'
         ),
-        split_convs=False,
+        split_convs=True,
         r=500.
     ))
 # training and testing settings
@@ -82,12 +82,14 @@ dataset_type = 'CocoDataset'
 data_root = 'data/coco/'
 img_norm_cfg = dict(
     mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
+img_scale_train = (1024, 800)
+img_scale_test = (1024, 800)
 train_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(type='LoadAnnotations', with_bbox=True),
     dict(
         type='Resize',
-        img_scale=[(1333, 640), (1333, 800)],
+        img_scale=img_scale_train,
         multiscale_mode='value',
         keep_ratio=True),
     dict(type='RandomFlip', flip_ratio=0.5),
@@ -100,7 +102,7 @@ test_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(
         type='MultiScaleFlipAug',
-        img_scale=(1333, 800),
+        img_scale=img_scale_test,
         flip=False,
         transforms=[
             dict(type='Resize', keep_ratio=True),
