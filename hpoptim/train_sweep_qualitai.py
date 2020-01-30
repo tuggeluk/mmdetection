@@ -35,9 +35,7 @@ def parse_arguments():
     desc = "you shouldn't be reading this as this should never be run manually."
     parser = argparse.ArgumentParser(description=desc)
 
-    parser.add_argument('--r_val', type=int)
     parser.add_argument('--max_energy', type=int)
-    parser.add_argument('--loss_cls_weight', type=float)
     parser.add_argument('--loss_bbox_weight', type=float)
     parser.add_argument('--loss_energy_weight', type=float)
     parser.add_argument('--loss_energy_gamma', type=float)
@@ -51,9 +49,7 @@ def parse_arguments():
 
 
 def create_run_config(base_config, name,
-                      r_val,
                       max_energy,
-                      loss_cls_weight,
                       loss_bbox_weight,
                       loss_energy_weight,
                       loss_energy_gamma,
@@ -71,10 +67,8 @@ def create_run_config(base_config, name,
     with open(base_config, 'r') as file:
         config = file.readlines()
 
-    config[63] = '        r={}\n'.format(r_val)
     config[41] = '        max_energy={},\n'.format(max_energy)
 
-    config[50] = '            loss_weight={}),\n'.format(loss_cls_weight)
     config[53] = '            loss_weight={}),\n'.format(loss_bbox_weight)
     config[59] = '            loss_weight={},\n'.format(loss_energy_weight)
 

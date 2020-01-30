@@ -46,7 +46,10 @@ class WFCOSHead(nn.Module):
                  conv_cfg=None,
                  norm_cfg=None,
                  split_convs=False,
-                 r=500.):
+                 assign="max_edge",
+                 r=500.,
+                 mask_outside=False,
+                 bbox_percent=None):
         """
         Creates a head based on FCOS that instead uses an energy_preds map.
 
@@ -74,7 +77,13 @@ class WFCOSHead(nn.Module):
                 energy_preds map convolution stacks. False means that the
                 classification energy_preds map shares the same convolution
                 stack. Defaults to False.
+            assign (string): "max_edge", "min_edge, or "avg_edge" decides what
+                metric is used to assign the bounding boxes to a feature level
             r (float): r variable in the energy map target equation.
+            mask_outside (bool): set all areas outside of bounding boxes to zero
+            bbox_percent (float): portion of the bounding box that will be
+                filled with the energy marker, this will override r if it is
+                not None.
         """
         super(WFCOSHead, self).__init__()
 
@@ -118,6 +127,9 @@ class WFCOSHead(nn.Module):
         self.max_energy = max_energy
         self.split_convs = split_convs
         self.r = r
+        self.assign = assign
+        self.mask_outside = mask_outside
+        self.bbox_percent = bbox_percent
 
         # Now create the layers
         self._init_layers()
@@ -532,7 +544,7 @@ class WFCOSHead(nn.Module):
         """
         # max_indices is a 2 dim tensor, where dim 0 is the sorted indices
         # and dim 1 is the max_edge value
-        max_indices = self.sort_bboxes(bbox_list)
+        max_indices = self.sort_bboxes(bbox_list, self.assign)
 
         # Future TODO: Try sorting by area and see if that works better
         # TODO: Figure out what to do with background class.
@@ -592,12 +604,14 @@ class WFCOSHead(nn.Module):
         return out_list
 
     @staticmethod
-    def sort_bboxes(bbox_list):
+    def sort_bboxes(bbox_list, assign="max_edge"):
         """Sorts bboxes based on max_edge length.
 
         Args:
             bbox_list (list): The list of bounding boxes to be sorted. The
                 bounding boxes must be tensors in the shape (n, 4).
+            assign (str): Metric to determine what to sort bboxes by. Possible
+                values are "max_edge", "min_edge", "avg_edge"
 
         Returns:
             list: A list of (2, n) tensors, where n is the number of bboxes
@@ -618,13 +632,21 @@ class WFCOSHead(nn.Module):
             # understand.
             edges = edges.transpose(0, 1)
 
-            # Get the max, then get the sorted indices.
-            max_edges = edges.max(1).values
-            sorted_inds = max_edges.argsort()
+            if assign == "max_edge":
+                # Get the max, then get the sorted indices.
+                proc_edges = edges.max(1).values
+            elif assign == "min_edge":
+                proc_edges = edges.min(1).values
+            elif assign == "avg_edge":
+                proc_edges = edges.mean(1)
+            else:
+                raise ValueError("unknown assign parameter")
+
+            sorted_inds = proc_edges.argsort()
 
             # Concatenate them and add them to the out_list
             out_list.append(torch.cat((sorted_inds.to(dtype=torch.float),
-                                       max_edges[sorted_inds]))
+                                       proc_edges[sorted_inds]))
                             .reshape(2, bboxes.shape[0]))
 
         return out_list
@@ -685,8 +707,13 @@ class WFCOSHead(nn.Module):
             for i, (gb, bbox) in enumerate(zip(grid_bounds, bboxes)):
                 # Go through each bbox. First create the mask of grid areas
                 # where the bounding box exists.
-                mask = torch.zeros_like(energy_layers[i]).to(dtype=torch.bool)
-                mask[gb[1]:gb[3], gb[0]:gb[2]] = True
+                if self.mask_outside:
+                    mask = torch.zeros_like(energy_layers[i])\
+                        .to(dtype=torch.bool)
+                    mask[gb[1]:gb[3], gb[0]:gb[2]] = True
+                else:
+                    mask = torch.ones_like(energy_layers[i])\
+                        .to(dtype=torch.bool)
 
                 bbox_dist = torch.tensor((bbox[0] + bbox[2],
                                           bbox[1] + bbox[3]),
@@ -698,8 +725,17 @@ class WFCOSHead(nn.Module):
                 y_dist = torch.abs((bbox_dist[1] - (2. * y_index[mask]
                                                     / y_scale_factor)) / 2)
 
+
+                bbox_size = torch.tensor((bbox[2] - bbox[0],
+                                          bbox[3] - bbox[1]),
+                                         **type_dict)
+                # distances relative to the bbox size
+                x_dist = x_dist / bbox_size[0]
+                y_dist = y_dist / bbox_size[1]
+
                 # Multiplied by self is faster than tensor.pow(2) by about 30%
                 tot_dist = torch.sqrt((x_dist * x_dist) + (y_dist * y_dist))
+
                 val = 1 - (tot_dist / self.r)
                 val = torch.floor(val * self.max_energy)
 

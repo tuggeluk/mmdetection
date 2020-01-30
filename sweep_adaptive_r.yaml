@@ -1,0 +1,48 @@
+program: hpoptim/train_sweep_qualitai.py
+method: bayes
+metric:
+  name: bbox_mAP_50/train
+  goal: maximize
+parameters:
+  max_energy:
+    distribution: int_uniform
+    min: 10
+    max: 200
+  loss_bbox_weight:
+    distribution: uniform
+    min: 0.05
+    max: 5
+  loss_energy_weight:
+    distribution: uniform
+    min: 0.05
+    max: 5
+  loss_energy_gamma:
+    distribution: uniform
+    min: 0.2
+    max: 4
+  loss_energy_alpha:
+    distribution: uniform
+    min: 0.0001
+    max: 0.9999
+  lr_warmup:
+    distribution: categorical
+    values:
+      - constant
+      - linear
+      - exp
+  lr_warmup_iters:
+    distribution: int_uniform
+    min: 100
+    max: 1000
+  lr_warmup_ratio:
+    distribution: uniform
+    min: 0.1
+    max: 1
+  lr:
+    distribution: log_uniform
+    min: -18.420680743952367
+    max: -3.506557897319982
+early_terminate:
+  type: hyperband
+  eta: 18
+  min_iter: 8

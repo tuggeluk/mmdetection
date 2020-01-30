@@ -48,7 +48,7 @@ model = dict(
             use_sigmoid=True,
             gamma=2.0,
             alpha=0.25,
-            loss_weight="loss_cls_weight"),    ####################
+            loss_weight=0.2),
         loss_bbox=dict(
             type='IoULoss',
             loss_weight="loss_bbox_weight"),   ####################
@@ -61,7 +61,7 @@ model = dict(
             reduction='sum'
         ),
         split_convs=False,
-        r="r_val"                              ####################
+        r=1.
     ))
 # training and testing settings
 train_cfg = dict(
@@ -162,7 +162,8 @@ log_config = dict(
     interval=10,
     hooks=[
         dict(type='TextLoggerHook'),
-        dict(type='WandbLoggerHook')
+        dict(type='WandbLoggerHook',
+             img_interval=10)
     ])
 # yapf:enable
 # runtime settings

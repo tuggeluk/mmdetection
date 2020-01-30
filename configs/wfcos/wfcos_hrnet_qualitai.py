@@ -61,7 +61,7 @@ model = dict(
             reduction='sum'
         ),
         split_convs=False,
-        r=250.
+        r=1.
     ))
 # training and testing settings
 train_cfg = dict(
