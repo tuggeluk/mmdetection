@@ -46,7 +46,7 @@ class WFCOSHead(nn.Module):
                  conv_cfg=None,
                  norm_cfg=None,
                  split_convs=False,
-                 assign="max_edge",
+                 assign="all",
                  r=500.,
                  mask_outside=False,
                  bbox_percent=None):
@@ -58,6 +58,7 @@ class WFCOSHead(nn.Module):
             in_channels (int): Number of input channels.
             max_energy (int): Quantization of energy_preds. How much to split
                 the energy_preds values by.
+                if set to 1 it will change the behaviour to energy regression
             feat_channels (int): Number of feature channels in each of the
                 stacked convolutions.
             stacked_convs (int): Number of stacked convolutions to have.
@@ -79,6 +80,7 @@ class WFCOSHead(nn.Module):
                 stack. Defaults to False.
             assign (string): "max_edge", "min_edge, or "avg_edge" decides what
                 metric is used to assign the bounding boxes to a feature level
+                "all" will assign each bounding box to every level
             r (float): r variable in the energy map target equation.
             mask_outside (bool): set all areas outside of bounding boxes to zero
             bbox_percent (float): portion of the bounding box that will be filled
@@ -186,8 +188,7 @@ class WFCOSHead(nn.Module):
         # Bounding box regression convolution
         self.wfcos_reg = nn.Conv2d(self.feat_channels, 4, 3, padding=1)
         # Energy map convolution
-        self.wfcos_energy = nn.Conv2d(self.feat_channels, self.max_energy,
-                                      1, padding=0)
+        self.wfcos_energy = nn.Conv2d(self.feat_channels, self.max_energy, 1, padding=0)
 
         # Scaling factor for the different heads
         self.scales = nn.ModuleList([Scale(1.0) for _ in self.strides])
@@ -541,64 +542,71 @@ class WFCOSHead(nn.Module):
                 these lists contains an (n, 5) tensor, which represents the
                 bounding boxes with dim 5 being the class.
         """
-        # max_indices is a 2 dim tensor, where dim 0 is the sorted indices
-        # and dim 1 is the max_edge value
-        max_indices = self.sort_bboxes(bbox_list, self.assign)
-
-        # Future TODO: Try sorting by area and see if that works better
-        # TODO: Figure out what to do with background class.
-        # Then move them to the appropriate level based on strides. The edge
-        # size for each level should be [prev_regress_range, regress_range).
-        # e.g. If we have ranges((-1, 4), (4, 8), (8, INF)), then we have edge
-        # sizes [-1, 4), [4, 8), [8, INF)
-
-        split_inds = []
-        for max_index in max_indices:
-            indices = []
+        if self.assign == "all":
+            out_list = []
             for min_length, max_length in self.regress_ranges:
-                val = max_index[1]
-                val = (min_length <= val) * (val < max_length)
-                val = val.nonzero()
-                if val.nelement() != 0:
-                    val = val[-1].item()
-                else:
-                    val = None
-                indices.append(val)
+                out_list.append(torch.cat([bbox_list[0], labels_list[0].to(dtype=torch.float).unsqueeze(1)], dim=1))
+            out_list = [out_list]
+        else:
+            # max_indices is a 2 dim tensor, where dim 0 is the sorted indices
+            # and dim 1 is the max_edge value
+            max_indices = self.sort_bboxes(bbox_list, self.assign)
 
-            # indices is now the indices of the elements as split by max_edge,
-            # split properly into each feature level.
-            #
-            # We now split the actual bboxes into the values
-            end = 0
-            temp_inds = []
-            for i in range(len(indices)):
-                if indices[i] is None:
-                    temp_inds.append(
-                        torch.empty(0, device=max_indices[0][1].device)
+            # Future TODO: Try sorting by area and see if that works better
+            # TODO: Figure out what to do with background class.
+            # Then move them to the appropriate level based on strides. The edge
+            # size for each level should be [prev_regress_range, regress_range).
+            # e.g. If we have ranges((-1, 4), (4, 8), (8, INF)), then we have edge
+            # sizes [-1, 4), [4, 8), [8, INF)
+
+            split_inds = []
+            for max_index in max_indices:
+                indices = []
+                for min_length, max_length in self.regress_ranges:
+                    val = max_index[1]
+                    val = (min_length <= val) * (val < max_length)
+                    val = val.nonzero()
+                    if val.nelement() != 0:
+                        val = val[-1].item()
+                    else:
+                        val = None
+                    indices.append(val)
+
+                # indices is now the indices of the elements as split by max_edge,
+                # split properly into each feature level.
+                #
+                # We now split the actual bboxes into the values
+                end = 0
+                temp_inds = []
+                for i in range(len(indices)):
+                    if indices[i] is None:
+                        temp_inds.append(
+                            torch.empty(0, device=max_indices[0][1].device)
+                        )
+                        continue
+
+                    start = end
+                    end = indices[i] + 1
+                    temp_inds.append(max_index[0][start:end])
+
+                split_inds.append(temp_inds)
+                # split_bbox_ind is appended an s length list, where each element
+                # contains all the indices that belong to that feature level.
+
+            out_list = []
+            for i in range(len(bbox_list)):             # Iterate through each image
+                temp_list = []
+                for inds in split_inds[i]:                 # Iterate through head
+                    # Grab bboxes with the given indices, then the labels
+                    bbox = bbox_list[i][inds.to(dtype=torch.long)]
+                    labels = labels_list[i][inds.to(dtype=torch.long)].to(
+                        dtype=torch.float)
+                    # Labels must be unsqueezed to allow concatenation
+                    temp_list.append(
+                        torch.cat((bbox, labels.unsqueeze(1)), dim=1)
                     )
-                    continue
+                out_list.append(temp_list)
 
-                start = end
-                end = indices[i] + 1
-                temp_inds.append(max_index[0][start:end])
-
-            split_inds.append(temp_inds)
-            # split_bbox_ind is appended an s length list, where each element
-            # contains all the indices that belong to that feature level.
-
-        out_list = []
-        for i in range(len(bbox_list)):             # Iterate through each image
-            temp_list = []
-            for inds in split_inds[i]:                 # Iterate through head
-                # Grab bboxes with the given indices, then the labels
-                bbox = bbox_list[i][inds.to(dtype=torch.long)]
-                labels = labels_list[i][inds.to(dtype=torch.long)].to(
-                    dtype=torch.float)
-                # Labels must be unsqueezed to allow concatenation
-                temp_list.append(
-                    torch.cat((bbox, labels.unsqueeze(1)), dim=1)
-                )
-            out_list.append(temp_list)
 
         return out_list
 
@@ -703,9 +711,6 @@ class WFCOSHead(nn.Module):
             # Fill each energy layer. This is done this way to allow for
             # vectorized calculations.
             for i, (gb, bbox) in enumerate(zip(grid_bounds, bboxes)):
-                self.mask_outside
-                self.bbox_percent
-                self.r
                 # Go through each bbox. First create the mask of grid areas
                 # where the bounding box exists.
                 if self.mask_outside:
@@ -739,10 +744,12 @@ class WFCOSHead(nn.Module):
                 if self.bbox_percent is not None:
                     # energy marker based off bounding box size
                     val = 1 - (tot_dist / self.bbox_percent)
-                    val = torch.floor(val * self.max_energy)
+
                 else:
                     # energy marker based off fixed radius
                     val = 1 - (tot_dist / self.r)
+
+                if self.max_energy != 1:
                     val = torch.floor(val * self.max_energy)
 
                 # torch.max to eliminate negative numbers. torch.max is
