@@ -627,13 +627,14 @@ class HRNet_upsamp(nn.Module):
                 x_list.append(y_list[i])
 
         y_list = self.stage4(x_list)
-        final_outputs=[]
-        
-        for i in range(self.num_deconvs):
-            x = y_list[i]
-            x = self.deconv_layers_2[i](x)
-            final_outputs.append(x)
-        return final_outputs
+        return y_list
+        # final_outputs=[]
+        # for i in range(self.num_deconvs):
+        #     x = y_list[i]
+        #     x = self.deconv_layers_2[i](x)
+        #     final_outputs.append(x)
+        #
+        # return final_outputs
 
     def train(self, mode=True):
         super(HRNet_upsamp, self).train(mode)
