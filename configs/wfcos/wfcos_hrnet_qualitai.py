@@ -39,7 +39,7 @@ model = dict(
         type='WFCOSHead',
         num_classes=2,
         in_channels=256,
-        max_energy=72,
+        max_energy=66,
         stacked_convs=4,
         feat_channels=256,
         strides=[8, 16, 32, 64, 128],
@@ -48,20 +48,20 @@ model = dict(
             use_sigmoid=True,
             gamma=2.0,
             alpha=0.25,
-            loss_weight=1.987),
+            loss_weight=0.5192319910168997),
         loss_bbox=dict(
             type='IoULoss',
             loss_weight=0.3194),
         loss_energy=dict(
             type='FocalLoss',
             use_sigmoid=True,
-            gamma=0.9334,
-            alpha=0.8586,
-            loss_weight=0.8586,
+            gamma=0.20862773965754666,
+            alpha=0.518663102595557,
+            loss_weight=2.948074669459426,
             reduction='sum'
         ),
         split_convs=False,
-        r=210.
+        r=1.
     ))
 # training and testing settings
 train_cfg = dict(
@@ -93,6 +93,20 @@ train_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(type='LoadAnnotations', with_bbox=True),
     dict(type='Resize', img_scale=img_scale_train, keep_ratio=True),
+    dict(type='Albu',
+         transforms = [
+             {'type': 'HueSaturationValue',
+              'hue_shift_limit': 0.2253 * 128.,
+              'sat_shift_limit': 30.,
+              'val_shift_limit': 0
+              },
+             {'type': 'RandomBrightnessContrast',
+              'brightness_limit': 0.04011,
+              'contrast_limit': 1.203,
+              'brightness_by_max': False
+              }
+         ]
+    ),
     dict(type='RandomFlip', flip_ratio=0.5),
     dict(type='Normalize', **img_norm_cfg),
     dict(type='Pad', size_divisor=32),
@@ -136,7 +150,7 @@ data = dict(
 # optimizer
 optimizer = dict(
     type='SGD',
-    lr=0.02366,
+    lr=0.0008195291625944014,
     momentum=0.9,
     weight_decay=0.0001,
     paramwise_options=dict(bias_lr_mult=2., bias_decay_mult=0.))
@@ -148,9 +162,9 @@ optimizer_config = dict(
 # learning policy
 lr_config = dict(
     policy='step',
-    warmup='constant',
-    warmup_iters=695,
-    warmup_ratio=0.5188,
+    warmup='linear',
+    warmup_iters=699,
+    warmup_ratio=0.3493062687483169,
     step=[16, 22])
 checkpoint_config = dict(interval=1)
 # yapf:disable
@@ -163,14 +177,14 @@ log_config = dict(
     ])
 # yapf:enable
 # runtime settings
-total_epochs = 160
+total_epochs = 40
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = './work_dirs/qualitai'
-# load_from = None
-load_from = work_dir + '/latest.pth'
-# resume_from = None
-resume_from = work_dir + '/latest.pth'
+work_dir = './work_dirs/qualitai_optimized'
+load_from = None
+# load_from = work_dir + '/latest.pth'
+resume_from = None
+# resume_from = work_dir + '/latest.pth'
 workflow = [('train', 1)]
 
 # wandb settings
