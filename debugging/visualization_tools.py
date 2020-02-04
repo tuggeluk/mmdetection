@@ -37,7 +37,7 @@ def image_pyramid(pred_maps, target_size):
         lvl_img = lvl_img.resize(target_size[::-1])
         lvl_img = np.array(lvl_img)
         resized_imgs.append(lvl_img)
-        resized_imgs.append(np.zeros((10,) + lvl_img.shape[1:]))
+        resized_imgs.append(np.full((10,) + lvl_img.shape[1:], 255))
     img_cat = np.concatenate(resized_imgs)
     return img_cat.astype(np.uint8)
 
