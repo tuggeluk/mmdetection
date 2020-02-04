@@ -106,7 +106,7 @@ class ValidationDebug:
             pass
         print('done')
 
-    def validate(self, checkpoint_file_path, output_file):
+    def validate(self, checkpoint_file_path, output_file=None):
         """Runs validation with QualitAI metrics."""
 
         print('Loading model...')
@@ -182,17 +182,17 @@ class ValidationDebug:
             prog_bar.update()
 
         # Dump out result files
-        if not isinstance(results[0], dict):
-            results2json(self.dataset, results, output_file)
-        else:
-            for name in results[0]:
-                results_ = [result[name] for result in results]
-                result_file = output_file + '.{}'.format(name)
-                results2json(self.dataset, results_, result_file)
+        if output_file:
+            print("\nWriting out results...")
+            if not isinstance(results[0], dict):
+                results2json(self.dataset, results, output_file)
+            else:
+                for name in results[0]:
+                    results_ = [result[name] for result in results]
+                    result_file = output_file + '.{}'.format(name)
+                    results2json(self.dataset, results_, result_file)
 
         # Calculate values
-        "\nWriting out results..."
-
         print('\nStarting evaluation according to QualitAI metrics...')
         accuracy = 0.
         precision = 0.
@@ -216,6 +216,8 @@ class ValidationDebug:
         print("Accuracy:  {:.7f}".format(accuracy))
         print("Precision: {:.7f}".format(precision))
         print("Recall:    {:.7f}".format(recall))
+
+        return {'acc': accuracy, 'precision': precision, 'recall': recall}
 
     @staticmethod
     def get_ids_of_files(dataset):
@@ -279,7 +281,6 @@ class ValidationDebug:
             out[bbox[1]:bbox[3], bbox[0]:bbox[2]] = True
 
         return out
-
 
     @staticmethod
     def calculate_accuracy(targets, preds):
