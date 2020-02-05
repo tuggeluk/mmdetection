@@ -24,6 +24,7 @@ from mmdet.core import wrap_fp16_model, results2json
 from argparse import ArgumentParser
 from os.path import split, join
 
+from sklearn import metrics
 from PIL import Image
 
 
@@ -133,9 +134,8 @@ class ValidationDebug:
         print('Starting inference run...')
 
         # Do inference
-        results = []
-        bool_preds = []
-        bool_targets = []
+        results = np.zeros((len(self.loader), 99), dtype=bool)
+        gt = np.zeros(len(self.loader), dtype=bool)
         prog_bar = ProgressBar(len(self.loader.dataset))
 
         file_id_lookup = self.get_ids_of_files(self.dataset.coco)
@@ -143,14 +143,7 @@ class ValidationDebug:
         for i, data in enumerate(self.loader):
             with torch.no_grad():
                 result = model(return_loss=False, rescale=True, **data)
-            results.append(result)
 
-            img_shape = data['img_meta'][0].data[0][0]['ori_shape']
-            bool_pred = self.transform_preds_to_boolean(
-                    img_shape[0:2],
-                    result[0]
-                )
-            bool_preds.append(bool_pred)
             path, img_name = split(data['img_meta'][0].data[0][0]['filename'])
             if img_name in file_id_lookup:
                 img_id = file_id_lookup[img_name]
@@ -161,61 +154,56 @@ class ValidationDebug:
                 else:
                     raise KeyError(img_name)
 
-            bool_target = self.transform_targets_to_boolean(
-                self.dataset.coco, img_id, img_shape[0:2])
-            bool_targets.append(bool_target)
-
-            target_img = np.zeros(img_shape, dtype='uint8')
-            target_img[bool_target] = [0, 255, 0]
-            target_img = Image.fromarray(target_img)
-            pred_img = np.zeros(img_shape, dtype='uint8')
-            pred_img[bool_pred] = [255, 0, 0]
-            pred_img = Image.fromarray(pred_img)
-            intersection_img = np.zeros(img_shape, dtype='uint8')
-            intersection_img[bool_target * bool_pred] = [0, 0, 255]
-            intersection_img = Image.fromarray(intersection_img)
-            target_img.save('/workspace/outputs/{}-target.png'.format(i))
-            pred_img.save('/workspace/outputs/{}-pred.png'.format(i))
-            intersection_img.save('/workspace/outputs/{}-intersection.png'
-                                  .format(i))
+            gt[i] = len(self.dataset.coco.getAnnIds(img_id)) > 0
+            for thr in range(99):
+                results[i, thr] = np.count_nonzero(
+                    result[0][:,4] > thr / 100
+                ) > 0
 
             prog_bar.update()
-
-        # Dump out result files
-        if not isinstance(results[0], dict):
-            results2json(self.dataset, results, output_file)
-        else:
-            for name in results[0]:
-                results_ = [result[name] for result in results]
-                result_file = output_file + '.{}'.format(name)
-                results2json(self.dataset, results_, result_file)
 
         # Calculate values
         "\nWriting out results..."
 
         print('\nStarting evaluation according to QualitAI metrics...')
-        accuracy = 0.
-        precision = 0.
-        recall = 0.
-        num_imgs = 0.
-        for target, pred in zip(bool_targets, bool_preds):
-            accuracy += self.calculate_accuracy(target, pred)
-            precision += self.calculate_precision(target, pred)
-            recall += self.calculate_recall(target, pred)
-            num_imgs += 1.
 
-        accuracy /= num_imgs
-        precision /= num_imgs
-        recall /= num_imgs
+        print('in copyable csv:\n')
+        print('thr,acc,precision,recall')
+        per_thr_acc = []
+        for i in range(99):
+            acc = metrics.balanced_accuracy_score(gt, results[:, i])
+            per_thr_acc.append(acc)
+            precision = metrics.precision_score(gt, results[:, i])
+            recall = metrics.recall_score(gt, results[:, i])
+            print("{:.2f},{:.5f},{:.5f},{:.5f}"
+                  .format((i + 1) / 100, acc, precision, recall))
 
-        print('Done!')
+        # print('\nBest thr value:')
+        # best_thr_val = np.argmax(np.array(per_thr_acc))
+        # print('Thr: {}, Accuracy: {}'.format(best_thr_val,
+        #                                      per_thr_acc[best_thr_val]))
+        # accuracy = 0.
+        # precision = 0.
+        # recall = 0.
+        # num_imgs = 0.
+        # for target, pred in zip(bool_targets, bool_preds):
+        #     accuracy += self.calculate_accuracy(target, pred)
+        #     precision += self.calculate_precision(target, pred)
+        #     recall += self.calculate_recall(target, pred)
+        #     num_imgs += 1.
+        #
+        # accuracy /= num_imgs
+        # precision /= num_imgs
+        # recall /= num_imgs
 
-        print("\nResults:")
-        print("======================")
-        print("Num imgs:  {}".format(int(num_imgs)))
-        print("Accuracy:  {:.7f}".format(accuracy))
-        print("Precision: {:.7f}".format(precision))
-        print("Recall:    {:.7f}".format(recall))
+        # print('Done!')
+        #
+        # print("\nResults:")
+        # print("======================")
+        # print("Num imgs:  {}".format(int(num_imgs)))
+        # print("Accuracy:  {:.7f}".format(accuracy))
+        # print("Precision: {:.7f}".format(precision))
+        # print("Recall:    {:.7f}".format(recall))
 
     @staticmethod
     def get_ids_of_files(dataset):
