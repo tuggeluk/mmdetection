@@ -144,6 +144,7 @@ class ValidationDebug:
             with torch.no_grad():
                 result = model(return_loss=False, rescale=True, **data)
 
+            # This entire block is just to get the img_id
             path, img_name = split(data['img_meta'][0].data[0][0]['filename'])
             if img_name in file_id_lookup:
                 img_id = file_id_lookup[img_name]
@@ -154,12 +155,38 @@ class ValidationDebug:
                 else:
                     raise KeyError(img_name)
 
+            # This is to get the ground truth binary classifications
             gt[i] = len(self.dataset.coco.getAnnIds(img_id)) > 0
+
+            # This is to get the predicted binary classifications
             for thr in range(99):
                 results[i, thr] = np.count_nonzero(
                     result[0][:,4] > thr / 100
                 ) > 0
 
+            img_shape = data['img_meta'][0].data[0][0]['ori_shape']
+            bool_pred = self.transform_preds_to_boolean(
+                img_shape[0:2],
+                result[0]
+            )
+
+            # Write out images #################################################
+            if i % 30 == 0:
+                bool_target = self.transform_targets_to_boolean(
+                    self.dataset.coco, img_id, img_shape[0:2])
+
+                target_img = np.zeros(img_shape, dtype='uint8')
+                target_img[bool_target] = [0, 255, 0]
+                target_img = Image.fromarray(target_img)
+                pred_img = np.zeros(img_shape, dtype='uint8')
+                pred_img[bool_pred] = [255, 0, 0]
+                pred_img = Image.fromarray(pred_img)
+
+                ori_img = Image.open(data['img_meta'][0].data[0][0]['filename'])
+                ori_img.save('/workspace/outputs/{}-ori.jpg'.format(i))
+                target_img.save('/workspace/outputs/{}-target.png'.format(i))
+                pred_img.save('/workspace/outputs/{}-pred.png'.format(i))
+            # END ##############################################################
             prog_bar.update()
 
         # Calculate values
