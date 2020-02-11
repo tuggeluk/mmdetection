@@ -60,7 +60,7 @@ model = dict(
             reduction='sum'
         ),
         split_convs=False,
-        r=250.
+        r=1.
     ))
 # training and testing settings
 train_cfg = dict(
@@ -175,5 +175,5 @@ workflow = [('train', 1)]
 wandb_cfg = dict(
     entity='warp-net',
     project='qualitai',
-    dryrun=False
+    dryrun=True
 )

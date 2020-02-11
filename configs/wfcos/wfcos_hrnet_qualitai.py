@@ -55,7 +55,7 @@ model = dict(
         loss_energy=dict(
             type='FocalLoss',
             use_sigmoid=True,
-            gamma=0.20862773965754666,
+            gamma=5.,
             alpha=0.518663102595557,
             loss_weight=2.948074669459426,
             reduction='sum'
@@ -131,11 +131,11 @@ test_pipeline = [
 ]
 data = dict(
     imgs_per_gpu=4,
-    workers_per_gpu=4,
+    workers_per_gpu=3,
     train=dict(
         type=dataset_type,
-        ann_file=data_root + 'qualitai_training.json',
-        img_prefix=data_root + 'train/',
+        ann_file=data_root + 'qualitai_training_bad.json',
+        img_prefix=data_root + 'train/bad/',
         pipeline=train_pipeline),
     val=dict(
         type=dataset_type,
@@ -177,14 +177,14 @@ log_config = dict(
     ])
 # yapf:enable
 # runtime settings
-total_epochs = 40
+total_epochs = 160
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = './work_dirs/qualitai_optimized'
-load_from = None
-# load_from = work_dir + '/latest.pth'
-resume_from = None
-# resume_from = work_dir + '/latest.pth'
+work_dir = './work_dirs/qualitai_optimized_2'
+# load_from = None
+load_from = work_dir + '/latest.pth'
+# resume_from = None
+resume_from = work_dir + '/latest.pth'
 workflow = [('train', 1)]
 
 # wandb settings
