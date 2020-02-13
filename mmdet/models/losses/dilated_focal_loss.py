@@ -41,6 +41,13 @@ class DilatedFocalLoss(FocalLoss):
                 length C, where C is is the number of classes and is the factor
                 by which the loss of the corresponding class inside their
                 respective masks will be multiplied by.
+            use_sigmoid (bool): Whether or not to use a sigmoidal function.
+                Non-sigmoidal mode is currently not implemented
+            gamma (float): Gamma value for focal loss.
+            alpha (float): Alpha value for focal loss.
+            reduction (str): One of 'mean', 'sum', or 'none'. Reduction used to
+                do weight reduced loss.
+            loss_weight (float): How much this loss matters to the whole loss.
         """
         super(DilatedFocalLoss, self).__init__(use_sigmoid, gamma, alpha,
                                                reduction, loss_weight)
@@ -69,6 +76,22 @@ class DilatedFocalLoss(FocalLoss):
                 weight=None,
                 avg_factor=None,
                 reduction_override=None):
+        """Runs a forwards pass.
+
+        Shapes:
+            pred: [n, c, h, w]
+            target: [n, h, w]
+            weight: Irrelevant as long as weight.nelement() == target.nelement()
+        Args:
+            pred (torch.Tensor): Predictions from the network.
+            target (torch.Tensor): Ground truth.
+            weight (None or torch.Tensor): Element-wise weighting for each of
+                the elements in the target.
+            avg_factor (float): Average factor when computing the weight
+                reduced loss.
+            reduction_override (None or str): Overrides the reduction
+                specified when initializing the loss instance.
+        """
         # Assertions
         assert reduction_override in (None, 'none', 'mean', 'sum')
         assert len(pred.shape) == 4, 'pred must have the shape [n, c, h, w]'
@@ -122,7 +145,7 @@ class DilatedFocalLoss(FocalLoss):
         """
         # Generate one-hot encoding in the shape (n, c, h, w)
         target_onehot = torch.zeros((self.num_classes + 1, *target.shape))
-        target_onehot.scatter_(0, target.unsqueeze(0).long(), 1)
+        target_onehot.scatter_(0, target.unsqueeze(0).long().detach().cpu(), 1)
         # Get rid of the onehot of the background class
         target_onehot = target_onehot[1:].permute(1, 0, 2, 3)
 
