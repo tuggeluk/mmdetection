@@ -81,7 +81,7 @@ test_cfg = dict(
     max_per_img=1000)
 # dataset settings
 dataset_type = 'QualitaiDataset'
-data_root = '/workspace/data/qualitai/'
+data_root = 'data/qualitai/'
 img_norm_cfg = dict(
     mean=[32.20495642019232, 31.513648345703196, 36.627047367261675],
     std=[34.395634168647526, 36.89673991173119, 38.85190978611362],

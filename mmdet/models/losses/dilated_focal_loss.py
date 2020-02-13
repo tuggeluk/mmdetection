@@ -20,9 +20,9 @@ from scipy.ndimage import binary_dilation
 @LOSSES.register_module
 class DilatedFocalLoss(FocalLoss):
     def __init__(self,
+                 num_classes,
                  b=3,
                  factor=1.0,
-                 num_classes=None,
                  use_sigmoid=True,
                  gamma=2.0,
                  alpha=0.25,
@@ -31,40 +31,37 @@ class DilatedFocalLoss(FocalLoss):
         """Dilated focal loss for extreme class imbalances.
 
         Args:
+            num_classes (int): Number of classes to be regressed to.
             b (int): Length of one edge of the structuring element used for the
                 dilation. If none is given, a structuring element with edge
                 length 1 is used.
-            factor (float or torch.Tensor): If factor is a single value,
+            factor (float or list): If factor is a single value,
                 then this is the factor by which any value inside of the mask
                 will be multiplied by. If factor is an array, it must have
                 length C, where C is is the number of classes and is the factor
                 by which the loss of the corresponding class inside their
                 respective masks will be multiplied by.
-            num_classes (int): Number of classes to be regressed. Only
-                required if multiclass factors are wanted, i.e. factor is not a
-                float.
-
         """
         super(DilatedFocalLoss, self).__init__(use_sigmoid, gamma, alpha,
                                                reduction, loss_weight)
         # Generate a proper structuring element from the given structure.
-        # This is necessary since we need to create a 4D structuring element,
-        # but a 2D binary structure is used. A 2D structure is used since we
-        # only want to dilate in 2D, i.e. not between classes.
+        # This is necessary since we only use a 2D structuring element since we
+        # only want to dilate in 2D, i.e. not between classes. We therefore
+        # require a 4D structuring element.
         structure = np.full((b, b), 1)
         zeros = np.zeros_like(structure)
         structure = np.stack((zeros, structure, zeros))
         zeros = np.zeros_like(structure)
         self.structure = np.stack((zeros, structure, zeros))
 
-        self.factor = factor
+        self.num_classes = num_classes
         if isinstance(factor, float):
-            self.multiclass = False
+            self.factor = [factor for _ in range(num_classes)]
         else:
-            assert isinstance(num_classes, int), 'num_classes must be given ' \
-                                                 'if multiclass is used.'
-            self.multiclass = True
-            self.num_classes = num_classes
+            self.factor = factor
+            error_message = "List of factors must be the same length as " \
+                            "the number of classes."
+            assert len(factor) == num_classes, error_message
 
     def forward(self,
                 pred,
@@ -72,30 +69,39 @@ class DilatedFocalLoss(FocalLoss):
                 weight=None,
                 avg_factor=None,
                 reduction_override=None):
+        # Assertions
         assert reduction_override in (None, 'none', 'mean', 'sum')
         assert len(pred.shape) == 4, 'pred must have the shape [n, c, h, w]'
+
+        # Ensure that factor is a torch.Tensor object on the correct device
+        if isinstance(self.factor, (list, tuple)):
+            self.factor = torch.tensor(self.factor, dtype=torch.float,
+                                       device=pred.device)
+
         reduction = (
             reduction_override if reduction_override else self.reduction)
         if self.use_sigmoid:
             # First generate the mask
-            if self.multiclass:
-                mask = self.multiclass_dilated_mask(target.detach().cpu())
-            else:
-                mask = self.dilated_mask(target.detach().cpu())
+            mask = self.dilated_mask(target)
 
-            mask = mask.to(device=target.device)
-
-            if self.multiclass:
-                mask = (mask.permute(0, 2, 3, 1)
-                        * self.factor).permute(0, 3, 1, 2)
-            else:
-                mask *= self.factor
+            mask = (mask.permute(0, 2, 3, 1)
+                    * self.factor).permute(0, 3, 1, 2)
 
             # Change all 0s to 1s
             # Using torch.where() is about twice as fast as using x[x == 0]
             ones = torch.full_like(mask, 1)
-            mask = torch.where(mask == 0, mask, ones)
-            loss_cls = _sigmoid_focal_loss(pred, target, self.gamma, self.alpha)
+            mask = torch.where(mask == 0, ones, mask)
+
+            mask = mask.permute(0, 2, 3, 1).reshape(-1, self.num_classes)
+
+            # Flatten since _sigmoid_focal_loss requires flat
+            flat_pred = pred.permute(0, 2, 3, 1).reshape(-1, self.num_classes)
+            flat_targets = target.reshape(-1).long()
+
+            loss_cls = _sigmoid_focal_loss(flat_pred,
+                                           flat_targets,
+                                           self.gamma,
+                                           self.alpha)
             loss_cls *= mask
 
             # Do weight reduction
@@ -106,27 +112,20 @@ class DilatedFocalLoss(FocalLoss):
             return loss_cls
 
     def dilated_mask(self, target):
-        """Generates a 2D numpy binary mask and then dilates it"""
-        # First generate a [n, 1, h, w] tensor
-        np_target = target.numpy()
-        # Then return the dilation of that tensor by the structuring element
-        dilated = binary_dilation(np_target, self.structure).astype(float)
-        return torch.tensor(dilated)
+        """Generates a 2D numpy binary mask that is then dilated.
 
-    def multiclass_dilated_mask(self, target):
-        """Generates a 2D numpy binary mask that can then be dilated.
+        Args:
+            target (torch.Tensor): Target in the shape of [n, h, w]
 
         Returns:
-            torch.Tensor
+            torch.Tensor: The dilated mask in the shape [n, c, h, w]
         """
         # Generate one-hot encoding in the shape (n, c, h, w)
-        target_onehot = torch.zeros((self.num_classes, target.shape[0],
-                                     target.shape[1], target.shape[2]))
-        target_onehot.scatter_(0, target.unsqueeze(0), 1)
-        target_onehot = target_onehot.permute(1, 0, 2, 3)
+        target_onehot = torch.zeros((self.num_classes + 1, *target.shape))
+        target_onehot.scatter_(0, target.unsqueeze(0).long(), 1)
+        # Get rid of the onehot of the background class
+        target_onehot = target_onehot[1:].permute(1, 0, 2, 3)
 
         # Now dilate it
         dilated = binary_dilation(target_onehot, self.structure).astype(float)
-        return torch.tensor(dilated)
-
-
+        return torch.tensor(dilated, dtype=target.dtype, device=target.device)
