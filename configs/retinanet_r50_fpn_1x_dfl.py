@@ -115,11 +115,20 @@ lr_config = dict(
 checkpoint_config = dict(interval=1)
 # yapf:disable
 log_config = dict(
-    interval=50,
+    interval=10,
     hooks=[
         dict(type='TextLoggerHook'),
-        # dict(type='TensorboardLoggerHook')
+        dict(type='WandbLoggerHook',
+             img_interval=50)
     ])
+
+# wandb settings
+wandb_cfg = dict(
+    entity='warp-net',
+    project='dilated_focal_loss',
+    dryrun=False
+)
+
 # yapf:enable
 # runtime settings
 total_epochs = 12
