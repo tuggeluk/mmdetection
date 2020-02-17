@@ -115,17 +115,26 @@ lr_config = dict(
 checkpoint_config = dict(interval=1)
 # yapf:disable
 log_config = dict(
-    interval=50,
+    interval=10,
     hooks=[
         dict(type='TextLoggerHook'),
-        # dict(type='TensorboardLoggerHook')
+        dict(type='WandbLoggerHook',
+             img_interval=50)
     ])
+
+# wandb settings
+wandb_cfg = dict(
+    entity='warp-net',
+    project='dilated_focal_loss',
+    dryrun=False
+)
+
 # yapf:enable
 # runtime settings
 total_epochs = 12
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = './work_dirs/retinanet_r50_fpn_1x'
+work_dir = './work_dirs/retinanet_r50_fpn_1x_dfl'
 load_from = None
 resume_from = None
 workflow = [('train', 1)]
