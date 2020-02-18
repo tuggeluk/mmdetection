@@ -133,7 +133,7 @@ class DilatedFocalLoss(FocalLoss):
             # First generate the mask
             mask = self.dilated_mask(reshaped_target)
 
-            mask = (mask.permute(0, 2, 3, 4, 1) * self.factor)
+            mask = mask.permute(0, 2, 3, 4, 1).float() * self.factor
 
             # Change all 0s to 1s
             # Using torch.where() is about twice as fast as using x[x == 0]

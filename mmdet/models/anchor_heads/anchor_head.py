@@ -142,11 +142,12 @@ class AnchorHead(nn.Module):
         return anchor_list, valid_flag_list
 
     def loss_single(self, cls_score, bbox_pred, labels, label_weights,
-                    bbox_targets, bbox_weights, featmap_size,
-                    num_total_samples, cfg,
+                    bbox_targets, bbox_weights, featmap_size=None,
+                    num_total_samples=None, cfg=None,
                     **kwargs):
         # classification loss
-        kwargs['featmap_size'] = featmap_size
+        if featmap_size:
+            kwargs['featmap_size'] = featmap_size
         labels = labels.reshape(-1)
         label_weights = label_weights.reshape(-1)
         cls_score = cls_score.permute(0, 2, 3,
