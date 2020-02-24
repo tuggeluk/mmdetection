@@ -155,7 +155,8 @@ log_config = dict(
     interval=10,
     hooks=[
         dict(type='TextLoggerHook'),
-        dict(type='WandbLoggerHook')
+        dict(type='WandbLoggerHook',
+             img_interval=50)
     ])
 # yapf:enable
 # runtime settings
