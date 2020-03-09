@@ -69,13 +69,15 @@ class OrientedBBoxesDataset(CustomDataset):
         Notes:
             - The annotation file is in JSON format.
             - The 'annotations' field is optional for testing.
-            - Segmentations are found in a png file named '[filename]_seg.png'
-                - The segmentation file is a grayscale 8-bit png image where the
-                    pixel values correspond to the cat_id.
-                - If more categories are required, alternative mappings can be
-                    defined by overriding the _parse_ann_info method.
             - cat_id, and ann_id are stringified ints.
             - cat_id, ann_id, and img_id starts at 1.
+
+        Segmentation Masks:
+        - Segmentations are found in a png file named '[filename]_seg.png'
+            - The segmentation file is a grayscale 8-bit png image where the
+                pixel values correspond to the cat_id.
+            - If more categories are required, alternative mappings can be
+                defined by overriding the _parse_ann_info method.
 
         Proposal schema:
             {
