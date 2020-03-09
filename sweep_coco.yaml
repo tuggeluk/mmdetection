@@ -40,5 +40,5 @@ parameters:
     max: 1
   lr:
     distribution: log_uniform
-    min: -13.815510557964274
+    min: -11.512925464970229
     max: -3.506557897319982

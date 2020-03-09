@@ -83,8 +83,13 @@ def create_run_config(base_config, name,
     config[150] = f'    warmup_iters={lr_warmup_iters},\n'
     config[151] = f'    warmup_ratio={lr_warmup_ratio},\n'
 
-    out_path = "/workspace/mmdetection/work_dirs/wfcos_qualitai_sweep_config/"
-    out_path += name
+    out_dir = "/workspace/mmdetection/work_dirs/wfcos_coco_sweep_config/"
+    if not os.path.exists(out_dir):
+        try:
+            os.makedirs(out_dir)
+        except OSError:
+            pass
+    out_path = out_dir + name
     with open(out_path, 'w') as file:
         file.writelines(config)
 
@@ -121,7 +126,11 @@ def test_prev_pids():
 
         if prev_processes:
             for pid in prev_processes:
-                os.kill(int(pid), SIGTERM)
+                try:
+                    os.kill(int(pid), SIGTERM)
+                except ProcessLookupError:
+                    if os.path.exists('/tmp/mmdet_pids.txt'):
+                        os.remove('/tmp/mmdet_pids.txt')
             sleep(5.)
 
     # Final sigkill if there are still processes
@@ -201,7 +210,7 @@ def main(arguments):
         config_name = "sweep--"\
                       + datetime.now().strftime("%Y_%m_%d--%H_%M_%S.py")
         config_path = create_run_config(
-            "/workspace/mmdetection/configs/wfcos/wfcos_qualitai_sweep.py",
+            "/workspace/mmdetection/configs/wfcos/wfcos_coco_sweep.py",
             config_name,
             **vars(arguments)
         )
