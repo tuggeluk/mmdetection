@@ -9,7 +9,6 @@ Author:
 """
 import torch
 import numpy as np
-import mmcv
 from mmcv import Config, ProgressBar
 
 from collections import OrderedDict
@@ -20,10 +19,10 @@ from mmcv.runner import load_checkpoint
 from mmcv.parallel import MMDataParallel
 
 from mmdet.datasets import build_dataset, build_dataloader
-from mmdet.core import wrap_fp16_model
+from mmdet.core import wrap_fp16_model, results2json
 
 from argparse import ArgumentParser
-from os.path import split
+from os.path import split, join
 
 from PIL import Image
 
@@ -37,7 +36,6 @@ def parse_arguments():
                              'QualitAI metrics. Requires a path to the '
                              'checkpoint.')
     parser.add_argument('--out', type=str, help='output result file')
-
     return parser.parse_args()
 
 
@@ -97,14 +95,14 @@ class ValidationDebug:
 
         print('starting inference validation run ...')
         for i, (img, cls) in enumerate(self.loader):
-            out = self.backbone(img)
-            out = self.neck(out)
-            out = self.head(out)
+            out = backbone(img)
+            out = neck(out)
+            out = head(out)
 
             img_metas = [{'img_shape': (640, 800),
                           'scale_factor': 1}]
-            bboxes = self.head.get_bboxes(out[0], out[1], out[2], img_metas,
-                                          self.cfg.test_cfg)
+            bboxes = head.get_bboxes(out[0], out[1], out[2], img_metas,
+                                     self.cfg.test_cfg)
             pass
         print('done')
 
@@ -144,7 +142,7 @@ class ValidationDebug:
 
         for i, data in enumerate(self.loader):
             with torch.no_grad():
-                result= model(return_loss=False, rescale=True, **data)
+                result = model(return_loss=False, rescale=True, **data)
             results.append(result)
 
             img_shape = data['img_meta'][0].data[0][0]['ori_shape']
@@ -153,8 +151,15 @@ class ValidationDebug:
                     result[0]
                 )
             bool_preds.append(bool_pred)
-            img_name = split(data['img_meta'][0].data[0][0]['filename'])[1]
-            img_id = file_id_lookup[img_name]
+            path, img_name = split(data['img_meta'][0].data[0][0]['filename'])
+            if img_name in file_id_lookup:
+                img_id = file_id_lookup[img_name]
+            else:
+                img_name = join(split(path)[1], img_name)
+                if img_name in file_id_lookup:
+                    img_id = file_id_lookup[img_name]
+                else:
+                    raise KeyError(img_name)
 
             bool_target = self.transform_targets_to_boolean(
                 self.dataset.coco, img_id, img_shape[0:2])
@@ -176,7 +181,18 @@ class ValidationDebug:
 
             prog_bar.update()
 
+        # Dump out result files
+        if not isinstance(results[0], dict):
+            results2json(self.dataset, results, output_file)
+        else:
+            for name in results[0]:
+                results_ = [result[name] for result in results]
+                result_file = output_file + '.{}'.format(name)
+                results2json(self.dataset, results_, result_file)
+
         # Calculate values
+        "\nWriting out results..."
+
         print('\nStarting evaluation according to QualitAI metrics...')
         accuracy = 0.
         precision = 0.
@@ -224,7 +240,7 @@ class ValidationDebug:
         Args:
             dataset (pycocotools.COCO): The coco dataset.
             img_id (int): The img_id of the current image
-
+            img_size (tuple): Size of the image
 
         Returns:
             np.ndarray: A (h, w) bool array where areas with targets are true.
