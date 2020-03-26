@@ -39,6 +39,7 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description=desc)
 
     parser.add_argument('--max_energy', type=int)
+    parser.add_argument('--loss_class_weight', type=float)
     parser.add_argument('--loss_bbox_weight', type=float)
     parser.add_argument('--loss_energy_weight', type=float)
     parser.add_argument('--loss_energy_gamma', type=float)
@@ -53,6 +54,7 @@ def parse_arguments():
 
 def create_run_config(base_config, name,
                       max_energy,
+                      loss_class_weight,
                       loss_bbox_weight,
                       loss_energy_weight,
                       loss_energy_gamma,
@@ -72,6 +74,7 @@ def create_run_config(base_config, name,
 
     config[41] = f'        max_energy={max_energy},\n'
 
+    config[50] = f'            loss_weight={loss_class_weight}),\n'
     config[53] = f'            loss_weight={loss_bbox_weight}),\n'
     config[59] = f'            loss_weight={loss_energy_weight},\n'
 
