@@ -1,9 +1,8 @@
-"""Train Sweep QualitAI.
+"""Train Sweep COCO.
 
 Sets up a training run with a Weights and Biases sweep.
 
 Optimized parameters:
-- model.bbox_head.r
 - model.bbox_head.max_energy
 - model.bbox_head.loss_cls.loss_weight
 - model.bbox_head.loss_bbox.loss_weight
