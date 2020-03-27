@@ -17,9 +17,9 @@ from mmcv.cnn import normal_init
 from mmdet.core import distance2bbox, force_fp32, multi_apply, multiclass_nms
 from ..builder import build_loss
 from ..registry import HEADS
-from ..utils import ConvModule, Scale, bias_init_with_prob
+from ..utils import bias_init_with_prob
 from .wfcos_head import WFCOSHead
-
+from mmdet.ops import ConvModule, Scale
 # Visualization imports
 import debugging.visualization_tools as vt
 from mmcv.visualization import imshow_det_bboxes

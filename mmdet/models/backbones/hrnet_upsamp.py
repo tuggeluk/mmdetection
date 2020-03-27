@@ -6,9 +6,8 @@ from mmcv.runner import load_checkpoint
 from torch.nn.modules.batchnorm import _BatchNorm
 
 from ..registry import BACKBONES
-from ..utils import build_conv_layer, build_norm_layer
 from .resnet import BasicBlock, Bottleneck
-
+from mmdet.ops import build_conv_layer, build_norm_layer
 
 class HRModule_upsamp(nn.Module):
     """ High-Resolution Module for HRNet. In this module, every branch

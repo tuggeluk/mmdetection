@@ -218,8 +218,8 @@ def _non_dist_train(model,
         batch_processor,
         optimizer,
         cfg.work_dir,
-        logger=logger,
-        meta=meta)
+        logger=logger)
+
     # an ugly walkaround to make the .log and .log.json filenames the same
     runner.timestamp = timestamp
     # fp16 setting
