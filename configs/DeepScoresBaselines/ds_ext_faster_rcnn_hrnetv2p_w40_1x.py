@@ -202,3 +202,5 @@ work_dir = './work_dirs/ds_ext_faster_rcnn_hrnetv2p_w40_1x'
 load_from = None
 resume_from = None
 workflow = [('train', 1)]
+# remove np so it does not enter the config dict
+del np

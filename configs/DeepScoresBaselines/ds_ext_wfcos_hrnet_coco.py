@@ -179,5 +179,7 @@ workflow = [('train', 1)]
 wandb_cfg = dict(
     entity='warp-net',
     project='fcos-wfcos-baseline-ds_ext',
-    dryrun=True
+    dryrun=False
 )
+# remove np so it does not enter the config dict
+del np

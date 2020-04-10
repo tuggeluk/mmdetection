@@ -138,3 +138,5 @@ work_dir = './work_dirs/ds_ext_retinanet_x101_64x4d_fpn_1x'
 load_from = None
 resume_from = None
 workflow = [('train', 1)]
+# remove np so it does not enter the config dict
+del np
