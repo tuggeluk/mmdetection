@@ -1,44 +1,67 @@
-import numpy as np
 # model settings
 model = dict(
-    type='RetinaNet',
-    pretrained='open-mmlab://resnext101_64x4d',
+    type='WFCOS',
+    pretrained='open-mmlab://msra/hrnetv2_w32',
     backbone=dict(
-        type='ResNeXt',
-        depth=101,
-        groups=64,
-        base_width=4,
-        num_stages=4,
-        out_indices=(0, 1, 2, 3),
-        frozen_stages=1,
-        norm_cfg=dict(type='BN', requires_grad=True),
-        style='pytorch'),
+        type='HRNet',
+        extra=dict(
+            stage1=dict(
+                num_modules=1,
+                num_branches=1,
+                block='BOTTLENECK',
+                num_blocks=(4, ),
+                num_channels=(64, )),
+            stage2=dict(
+                num_modules=1,
+                num_branches=2,
+                block='BASIC',
+                num_blocks=(4, 4),
+                num_channels=(32, 64)),
+            stage3=dict(
+                num_modules=4,
+                num_branches=3,
+                block='BASIC',
+                num_blocks=(4, 4, 4),
+                num_channels=(32, 64, 128)),
+            stage4=dict(
+                num_modules=3,
+                num_branches=4,
+                block='BASIC',
+                num_blocks=(4, 4, 4, 4),
+                num_channels=(32, 64, 128, 256)))),
     neck=dict(
-        type='FPN',
-        in_channels=[256, 512, 1024, 2048],
+        type='HRFPN',
+        in_channels=[32, 64, 128, 256],
         out_channels=256,
-        start_level=1,
-        add_extra_convs=True,
+        stride=2,
         num_outs=5),
     bbox_head=dict(
-        type='RetinaHead',
+        type='WFCOSHead',
         num_classes=150,
         in_channels=256,
+        max_energy=20,
         stacked_convs=4,
         feat_channels=256,
-        octave_base_scale=4,
-        scales_per_octave=3,
-        anchor_ratios=[0.5, 1.0, 2.0],
-        anchor_strides=[8, 16, 32, 64, 128],
-        target_means=[.0, .0, .0, .0],
-        target_stds=[1.0, 1.0, 1.0, 1.0],
+        strides=[8, 16, 32, 64, 128],
         loss_cls=dict(
             type='FocalLoss',
             use_sigmoid=True,
             gamma=2.0,
             alpha=0.25,
-            loss_weight=1.0),
-        loss_bbox=dict(type='SmoothL1Loss', beta=0.11, loss_weight=1.0)))
+            loss_weight=1.),
+        loss_bbox=dict(
+            type='IoULoss',
+            loss_weight=1.0
+        ),
+        loss_energy=dict(
+            type='FocalLoss',
+            use_sigmoid=True,
+            gamma=2.0,
+            loss_weight=1.
+        ),
+        split_convs=False,
+        r=500.
+    ))
 # training and testing settings
 train_cfg = dict(
     assigner=dict(
@@ -53,23 +76,27 @@ train_cfg = dict(
 test_cfg = dict(
     nms_pre=1000,
     min_bbox_size=0,
-    score_thr=0.05,
-    nms=dict(type='nms', iou_thr=0.5),
-    max_per_img=100)
+    score_thr=0.3,
+    nms=dict(type='nms', iou_thr=0.2),
+    max_per_img=1000)
+
 # dataset settings
 dataset_type = 'DeepScoresDataset'
 data_root = 'data/ds_ext/'
+
 img_norm_cfg = dict(
     mean=[240, 240, 240],
     std=[57, 57, 57],
     to_rgb=False)
+import numpy as np
 img_scale_train = np.asarray([2000, 3000])
 img_scale_test = np.asarray([3000, 3828])
+
 train_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(type='LoadAnnotations', with_bbox=True),
     dict(type='RandomCrop', crop_size=tuple(img_scale_train)),
-    dict(type='Resize', img_scale=tuple((img_scale_train*0.5).astype(np.int)), keep_ratio=True),
+    dict(type='Resize', img_scale=tuple((img_scale_train * 0.5).astype(np.int)), keep_ratio=True),
     dict(type='RandomFlip', flip_ratio=0),
     dict(type='Normalize', **img_norm_cfg),
     dict(type='Pad', size_divisor=32),
@@ -80,12 +107,12 @@ test_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(
         type='MultiScaleFlipAug',
-        img_scale=img_scale_test,
+        img_scale=tuple(img_scale_test),
         flip=False,
         transforms=[
-            dict(type='Resize', keep_ratio=True),
             dict(type='RandomCrop', crop_size=tuple(img_scale_test)),
             dict(type='Resize', img_scale=tuple((img_scale_test * 0.5).astype(np.int)), keep_ratio=True),
+            dict(type='RandomFlip'),
             dict(type='Normalize', **img_norm_cfg),
             dict(type='Pad', size_divisor=32),
             dict(type='ImageToTensor', keys=['img']),
@@ -110,31 +137,47 @@ data = dict(
         ann_file=data_root + 'deepscores_val.json',
         img_prefix=data_root + 'images_png/',
         pipeline=test_pipeline))
-evaluation = dict(interval=1, metric='bbox')
-# optimizer
-optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0001)
-optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
+
+optimizer = dict(
+    type='SGD',
+    lr=0.01,
+    momentum=0.9,
+    weight_decay=0.0001,
+    paramwise_options=dict(bias_lr_mult=2., bias_decay_mult=0.))
+optimizer_config = dict(
+    grad_clip=dict(
+        max_norm=2.
+    ))
 # learning policy
 lr_config = dict(
     policy='step',
-    warmup='linear',
+    warmup='constant',
     warmup_iters=500,
-    warmup_ratio=1.0 / 3,
-    step=[8, 11])
+    warmup_ratio=1.0/3,
+    step=[16, 22])
 checkpoint_config = dict(interval=1)
 # yapf:disable
 log_config = dict(
     interval=50,
     hooks=[
         dict(type='TextLoggerHook'),
-        dict(type='TensorboardLoggerHook')
+        dict(type='WandbLoggerHook')
     ])
 # yapf:enable
 # runtime settings
 total_epochs = 1000
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = './work_dirs/ds_ext_retinanet_x101_64x4d_fpn_1x'
+work_dir = './work_dirs/wfcos_hrnet_ds_ext'
 load_from = None
+# load_from = work_dir + '/epoch_4.pth'
 resume_from = None
+# resume_from = work_dir + '/epoch_4.pth'
 workflow = [('train', 1)]
+
+# wandb settings
+wandb_cfg = dict(
+    entity='warp-net',
+    project='fcos-wfcos-baseline-ds_ext',
+    dryrun=True
+)

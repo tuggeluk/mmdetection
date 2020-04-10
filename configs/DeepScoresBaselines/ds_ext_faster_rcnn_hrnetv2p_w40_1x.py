@@ -156,8 +156,8 @@ test_pipeline = [
 
 
 data = dict(
-    imgs_per_gpu=1,
-    workers_per_gpu=0,
+    imgs_per_gpu=2,
+    workers_per_gpu=2,
     train=dict(
         type=dataset_type,
         ann_file=data_root + 'deepscores_train.json',
@@ -188,14 +188,14 @@ lr_config = dict(
 checkpoint_config = dict(interval=1)
 # yapf:disable
 log_config = dict(
-    interval=1,
+    interval=50,
     hooks=[
         dict(type='TextLoggerHook'),
         dict(type='TensorboardLoggerHook')
     ])
 # yapf:enable
 # runtime settings
-total_epochs = 12
+total_epochs = 1000
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
 work_dir = './work_dirs/ds_ext_faster_rcnn_hrnetv2p_w40_1x'
