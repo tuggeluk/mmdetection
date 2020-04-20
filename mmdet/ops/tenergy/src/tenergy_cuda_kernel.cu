@@ -47,13 +47,13 @@ __global__ void TENERGY(const scalar_t *bottom_masks,
     int mask_index_n4 =
           Loc2Index(n,c, ph, pw - 1,channels,height, width);
     int mask_index_n5 =
-          Loc2Index(n,c, ph + 1, pw,channels,height, width);
+          Loc2Index(n,c, ph + 1, pw + 1,channels,height, width);
     int mask_index_n6 =
-          Loc2Index(n,c, ph - 1, pw,channels,height, width);
+          Loc2Index(n,c, ph - 1, pw - 1,channels,height, width);
     int mask_index_n7 =
-          Loc2Index(n,c, ph, pw + 1,channels,height, width);
+          Loc2Index(n,c, ph - 1, pw + 1,channels,height, width);
     int mask_index_n8 =
-          Loc2Index(n,c, ph, pw - 1,channels,height, width);
+          Loc2Index(n,c, ph + 1, pw - 1,channels,height, width);
 
     if(k==0)
       top_data[mask_index_a] =  bottom_masks[mask_index_a];
@@ -70,13 +70,13 @@ __global__ void TENERGY(const scalar_t *bottom_masks,
     }
 }
 
-int TENERGYLaucher(const at::Tensor masks, const int batch_size,
+int TENERGYLauncher(const at::Tensor masks, const int batch_size,
                               const int scale_factor,const int max_energy,
                               const int height,const int width, const int channels,
                               at::Tensor output) {
   const int output_size = batch_size * channels * height * width;
   AT_DISPATCH_FLOATING_TYPES_AND_HALF(
-      masks.type(), "TENERGYLaucherVote", ([&] {
+      masks.type(), "TENERGYLauncherVote", ([&] {
         const scalar_t *bottom_masks = masks.data<scalar_t>();
         scalar_t *top_data = output.data<scalar_t>();
         for( int k = 0;k < max_energy; k++)

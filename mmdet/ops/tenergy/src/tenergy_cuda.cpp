@@ -4,7 +4,7 @@
 #include <cmath>
 #include <vector>
 
-int TENERGYLaucher(const at::Tensor masks, const int batch_size,
+int TENERGYLauncher(const at::Tensor masks, const int batch_size,
                         const int scale_factor,const int max_energy,
                         const int height, const int width, const int channels,
                         at::Tensor output);
@@ -28,7 +28,7 @@ int tenergy_cuda(at::Tensor masks, int scale_factor, int max_energy,
   int data_height = output.size(2);
   int data_width = output.size(3);
 
-  TENERGYLaucher(masks,batch_size, scale_factor,max_energy,
+  TENERGYLauncher(masks,batch_size, scale_factor,max_energy,
                         data_height, data_width, num_channels,output);
 
   return 1;
@@ -36,6 +36,6 @@ int tenergy_cuda(at::Tensor masks, int scale_factor, int max_energy,
 
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
-  m.def("vote", &tenergy_cuda, "tenery_computation (CUDA)");
+  m.def("vote", &tenergy_cuda, "tenergy_computation (CUDA)");
   
 }
