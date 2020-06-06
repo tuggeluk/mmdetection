@@ -34,9 +34,9 @@ model = dict(
         type='RPNHead',
         in_channels=256,
         feat_channels=256,
-        anchor_scales=[8],
-        anchor_ratios=[0.5, 1.0, 2.0],
-        anchor_strides=[4, 8, 16, 32, 64],
+        anchor_scales=[1.0, 2.0, 4.0, 12.0],
+        anchor_ratios=[0.05, 0.3, 0.73, 2.5],
+        anchor_strides=[4, 8, 16, 16, 16],
         target_means=[.0, .0, .0, .0],
         target_stds=[1.0, 1.0, 1.0, 1.0],
         loss_cls=dict(
@@ -109,28 +109,29 @@ test_cfg = dict(
         nms_thr=0.7,
         min_bbox_size=0),
     rcnn=dict(
-        score_thr=0.05, nms=dict(type='nms', iou_thr=0.5), max_per_img=100)
+        score_thr=0.05, nms=dict(type='nms', iou_thr=0.5), max_per_img=1000)
     # soft-nms is also supported for rcnn testing
     # e.g., nms=dict(type='soft_nms', iou_thr=0.5, min_score=0.05)
 )
 # dataset settings
 
-dataset_type = 'DeepScoresDataset'
-data_root = 'data/ds_ext/'
+dataset_type = 'DeepScoresV2Dataset'
+data_root = 'data/ds2_dense/'
 
 img_norm_cfg = dict(
     mean=[240, 240, 240],
     std=[57, 57, 57],
     to_rgb=False)
 import numpy as np
-img_scale_train = np.asarray([2000, 3000])
-img_scale_test = np.asarray([3000, 3828])
+img_scale_train = np.asarray([1000, 1000])
+img_scale_test = np.asarray([1000, 1000])
+#img_scale_test = np.asarray([3000, 3828])
 
 train_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(type='LoadAnnotations', with_bbox=True),
     dict(type='RandomCrop', crop_size=tuple(img_scale_train)),
-    dict(type='Resize', img_scale=tuple((img_scale_train*0.5).astype(np.int)), keep_ratio=True),
+    dict(type='Resize', img_scale=tuple((img_scale_train).astype(np.int)), keep_ratio=True),
     dict(type='RandomFlip', flip_ratio=0),
     dict(type='Normalize', **img_norm_cfg),
     dict(type='Pad', size_divisor=32),
@@ -145,8 +146,8 @@ test_pipeline = [
         flip=False,
         transforms=[
             dict(type='RandomCrop', crop_size=tuple(img_scale_test)),
-            dict(type='Resize', img_scale=tuple((img_scale_test * 0.5).astype(np.int)), keep_ratio=True),
-            dict(type='RandomFlip'),
+            dict(type='Resize', img_scale=tuple((img_scale_test).astype(np.int)), keep_ratio=True),
+            dict(type='RandomFlip', flip_ratio=0),
             dict(type='Normalize', **img_norm_cfg),
             dict(type='Pad', size_divisor=32),
             dict(type='ImageToTensor', keys=['img']),
@@ -156,22 +157,22 @@ test_pipeline = [
 
 
 data = dict(
-    imgs_per_gpu=2,
+    imgs_per_gpu=1,
     workers_per_gpu=2,
     train=dict(
         type=dataset_type,
-        ann_file=data_root + 'deepscores_train.json',
-        img_prefix=data_root + 'images_png/',
+        ann_file=data_root + 'deepscores_oriented_train.json',
+        img_prefix=data_root + 'images/',
         pipeline=train_pipeline),
     val=dict(
         type=dataset_type,
-        ann_file=data_root + 'deepscores_val.json',
-        img_prefix=data_root + 'images_png/',
+        ann_file=data_root + 'deepscores_oriented_val.json',
+        img_prefix=data_root + 'images/',
         pipeline=test_pipeline),
     test=dict(
         type=dataset_type,
-        ann_file=data_root + 'deepscores_val.json',
-        img_prefix=data_root + 'images_png/',
+        ann_file=data_root + 'deepscores_oriented_val.json',
+        img_prefix=data_root + 'images/',
         pipeline=test_pipeline))
 
 evaluation = dict(interval=1, metric='bbox')
