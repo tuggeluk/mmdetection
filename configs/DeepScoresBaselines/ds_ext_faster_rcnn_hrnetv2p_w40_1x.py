@@ -201,7 +201,7 @@ dist_params = dict(backend='nccl')
 log_level = 'INFO'
 work_dir = './work_dirs/ds_ext_faster_rcnn_hrnetv2p_w40_1x'
 load_from = None
-resume_from = None
+resume_from = './work_dirs/ds_ext_faster_rcnn_hrnetv2p_w40_1x/latest.pth'
 workflow = [('train', 1)]
 # remove np so it does not enter the config dict
 del np
