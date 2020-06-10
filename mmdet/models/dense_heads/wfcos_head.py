@@ -12,14 +12,12 @@ Created on:
 """
 import torch
 import torch.nn as nn
-from mmcv.cnn import normal_init
-from mmcv import Timer
+from mmcv.cnn import normal_init, ConvModule, Scale, bias_init_with_prob, normal_init
+
 from mmdet.core import distance2bbox, force_fp32, multi_apply, multiclass_nms, mask_target
-from mmdet.ops import ConvModule, Scale
 from mmdet.ops.tenergy import tenergy_naive
-from ..builder import build_loss
-from ..registry import HEADS
-from ..utils import bias_init_with_prob
+from mmdet.models.builder import build_loss
+from ..builder import HEADS
 
 # Visualization imports
 import debugging.visualization_tools as vt

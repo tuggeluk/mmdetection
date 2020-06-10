@@ -15,6 +15,7 @@ from .retina_head import RetinaHead
 from .retina_sepbn_head import RetinaSepBNHead
 from .rpn_head import RPNHead
 from .ssd_head import SSDHead
+from .wfcos_head import WFCOSHead
 
 __all__ = [
     'AnchorHead', 'GuidedAnchorHead', 'FeatureAdaption', 'RPNHead',

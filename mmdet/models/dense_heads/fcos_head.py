@@ -3,8 +3,7 @@ import torch.nn as nn
 from mmcv.cnn import ConvModule, Scale, bias_init_with_prob, normal_init
 
 from mmdet.core import distance2bbox, force_fp32, multi_apply, multiclass_nms
-from mmdet.ops import ConvModule, Scale
-from ..utils import bias_init_with_prob
+
 import debugging.visualization_tools as vt
 
 from mmdet.core import get_classes, tensor2imgs, bbox2result

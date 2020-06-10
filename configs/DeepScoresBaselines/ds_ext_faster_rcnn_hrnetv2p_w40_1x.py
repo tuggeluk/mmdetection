@@ -123,15 +123,15 @@ img_norm_cfg = dict(
     std=[57, 57, 57],
     to_rgb=False)
 import numpy as np
-img_scale_train = np.asarray([1000, 1000])
-img_scale_test = np.asarray([1000, 1000])
+#img_scale_train = np.asarray([200, 200])
+#img_scale_test = np.asarray([200, 200])
 #img_scale_test = np.asarray([3000, 3828])
 
 train_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(type='LoadAnnotations', with_bbox=True),
-    dict(type='RandomCrop', crop_size=tuple(img_scale_train)),
-    dict(type='Resize', img_scale=tuple((img_scale_train).astype(np.int)), keep_ratio=True),
+    dict(type='RandomCrop', crop_size=(200, 200)),
+    dict(type='Resize', img_scale=tuple((200, 200)), keep_ratio=True),
     dict(type='RandomFlip', flip_ratio=0),
     dict(type='Normalize', **img_norm_cfg),
     dict(type='Pad', size_divisor=32),
@@ -142,11 +142,11 @@ test_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(
         type='MultiScaleFlipAug',
-        img_scale=tuple(img_scale_test),
+        img_scale=(1333, 800),
         flip=False,
         transforms=[
-            dict(type='RandomCrop', crop_size=tuple(img_scale_test)),
-            dict(type='Resize', img_scale=tuple((img_scale_test).astype(np.int)), keep_ratio=True),
+            dict(type='RandomCrop', crop_size=(200, 200)),
+            dict(type='Resize', img_scale=(200, 200), keep_ratio=True),
             dict(type='RandomFlip', flip_ratio=0),
             dict(type='Normalize', **img_norm_cfg),
             dict(type='Pad', size_divisor=32),
@@ -189,7 +189,7 @@ lr_config = dict(
 checkpoint_config = dict(interval=1)
 # yapf:disable
 log_config = dict(
-    interval=50,
+    interval=1,
     hooks=[
         dict(type='TextLoggerHook'),
         dict(type='TensorboardLoggerHook')
