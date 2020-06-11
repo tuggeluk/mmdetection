@@ -58,7 +58,7 @@ model = dict(
             in_channels=256,
             fc_out_channels=1024,
             roi_feat_size=7,
-            num_classes=150,
+            num_classes=135,
             bbox_coder=dict(
                 type='DeltaXYWHBBoxCoder',
                 target_means=[0., 0., 0., 0.],
@@ -133,27 +133,40 @@ import numpy as np
 #img_scale_train = np.asarray([200, 200])
 #img_scale_test = np.asarray([200, 200])
 #img_scale_test = np.asarray([3000, 3828])
+#Base size = 2700 * 3828
 
 train_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(type='LoadAnnotations', with_bbox=True),
-    dict(type='RandomCrop', crop_size=(200, 200)),
-    dict(type='Resize', img_scale=tuple((200, 200)), keep_ratio=True),
+    dict(type='RandomCrop', crop_size=(2600, 3600)),
+    dict(type='Resize', img_scale=tuple((1950, 2700)), keep_ratio=True),
     dict(type='RandomFlip', flip_ratio=0),
     dict(type='Normalize', **img_norm_cfg),
     dict(type='Pad', size_divisor=32),
     dict(type='DefaultFormatBundle'),
     dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels']),
 ]
+# train_pipeline = [
+#     dict(type='LoadImageFromFile'),
+#     dict(type='LoadAnnotations', with_bbox=True),
+#     dict(type='RandomCrop', crop_size=(300, 300)),
+#     dict(type='Resize', img_scale=tuple((300, 300)), keep_ratio=True),
+#     dict(type='RandomFlip', flip_ratio=0),
+#     dict(type='Normalize', **img_norm_cfg),
+#     dict(type='Pad', size_divisor=32),
+#     dict(type='DefaultFormatBundle'),
+#     dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels']),
+# ]
+
 test_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(
         type='MultiScaleFlipAug',
-        img_scale=(1333, 800),
+        img_scale=(500, 500),
         flip=False,
         transforms=[
-            dict(type='RandomCrop', crop_size=(200, 200)),
-            dict(type='Resize', img_scale=(200, 200), keep_ratio=True),
+#           dict(type='RandomCrop', crop_size=(200, 200)),
+            dict(type='Resize',  keep_ratio=True),
             dict(type='RandomFlip', flip_ratio=0),
             dict(type='Normalize', **img_norm_cfg),
             dict(type='Pad', size_divisor=32),
@@ -161,7 +174,17 @@ test_pipeline = [
             dict(type='Collect', keys=['img']),
         ])
 ]
-
+# test_pipeline = [
+#     dict(type='LoadImageFromFile'),
+#     dict(type='LoadAnnotations', with_bbox=True),
+#     dict(type='RandomCrop', crop_size=(200, 200)),
+#     dict(type='Resize', img_scale=tuple((200, 200)), keep_ratio=True),
+#     dict(type='RandomFlip', flip_ratio=0),
+#     dict(type='Normalize', **img_norm_cfg),
+#     dict(type='Pad', size_divisor=32),
+#     dict(type='DefaultFormatBundle'),
+#     dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels']),
+# ]
 
 data = dict(
     imgs_per_gpu=1,
@@ -196,7 +219,7 @@ lr_config = dict(
 checkpoint_config = dict(interval=1)
 # yapf:disable
 log_config = dict(
-    interval=100,
+    interval=1,
     hooks=[
         dict(type='TextLoggerHook'),
         dict(type='TensorboardLoggerHook')
