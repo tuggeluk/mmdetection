@@ -34,32 +34,39 @@ model = dict(
         type='RPNHead',
         in_channels=256,
         feat_channels=256,
-        anchor_scales=[1.0, 2.0, 4.0, 12.0],
-        anchor_ratios=[0.05, 0.3, 0.73, 2.5],
-        anchor_strides=[4, 8, 16, 16, 16],
-        target_means=[.0, .0, .0, .0],
-        target_stds=[1.0, 1.0, 1.0, 1.0],
+        anchor_generator = dict(
+            type='AnchorGenerator',
+            scales=[1.0, 2.0, 4.0, 12.0],
+            ratios=[0.05, 0.3, 0.73, 2.5],
+            strides=[4, 8, 16, 16, 16]),
+        bbox_coder=dict(
+            type='DeltaXYWHBBoxCoder',
+            target_means=[.0, .0, .0, .0],
+            target_stds=[1.0, 1.0, 1.0, 1.0]),
         loss_cls=dict(
             type='CrossEntropyLoss', use_sigmoid=True, loss_weight=1.0),
         loss_bbox=dict(type='SmoothL1Loss', beta=1.0 / 9.0, loss_weight=1.0)),
-    bbox_roi_extractor=dict(
-        type='SingleRoIExtractor',
-        roi_layer=dict(type='RoIAlign', out_size=7, sample_num=2),
-        out_channels=256,
-        featmap_strides=[4, 8, 16, 32]),
-    bbox_head=dict(
-        type='SharedFCBBoxHead',
-        num_fcs=2,
-        in_channels=256,
-        fc_out_channels=1024,
-        roi_feat_size=7,
-        num_classes=150,
-        target_means=[0., 0., 0., 0.],
-        target_stds=[0.1, 0.1, 0.2, 0.2],
-        reg_class_agnostic=False,
-        loss_cls=dict(
-            type='CrossEntropyLoss', use_sigmoid=False, loss_weight=1.0),
-        loss_bbox=dict(type='SmoothL1Loss', beta=1.0, loss_weight=1.0)))
+    roi_head=dict(
+        type='StandardRoIHead',
+        bbox_roi_extractor=dict(
+            type='SingleRoIExtractor',
+            roi_layer=dict(type='RoIAlign', out_size=7, sample_num=2),
+            out_channels=256,
+            featmap_strides=[4, 8, 16, 32]),
+        bbox_head=dict(
+            type='Shared2FCBBoxHead',
+            in_channels=256,
+            fc_out_channels=1024,
+            roi_feat_size=7,
+            num_classes=150,
+            bbox_coder=dict(
+                type='DeltaXYWHBBoxCoder',
+                target_means=[0., 0., 0., 0.],
+                target_stds=[0.1, 0.1, 0.2, 0.2]),
+            reg_class_agnostic=False,
+            loss_cls=dict(
+                type='CrossEntropyLoss', use_sigmoid=False, loss_weight=1.0),
+            loss_bbox=dict(type='SmoothL1Loss', beta=1.0, loss_weight=1.0))))
 # model training and testing settings
 train_cfg = dict(
     rpn=dict(
@@ -158,7 +165,7 @@ test_pipeline = [
 
 data = dict(
     imgs_per_gpu=1,
-    workers_per_gpu=2,
+    workers_per_gpu=0,
     train=dict(
         type=dataset_type,
         ann_file=data_root + 'deepscores_oriented_train.json',
@@ -189,7 +196,7 @@ lr_config = dict(
 checkpoint_config = dict(interval=1)
 # yapf:disable
 log_config = dict(
-    interval=1,
+    interval=100,
     hooks=[
         dict(type='TextLoggerHook'),
         dict(type='TensorboardLoggerHook')
@@ -200,8 +207,8 @@ total_epochs = 1000
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
 work_dir = './work_dirs/ds_ext_faster_rcnn_hrnetv2p_w40_1x'
-load_from = None
-resume_from = './work_dirs/ds_ext_faster_rcnn_hrnetv2p_w40_1x/latest.pth'
+load_from = './work_dirs/ds_ext_faster_rcnn_hrnetv2p_w40_1x/latest.pth'
+resume_from = None
 workflow = [('train', 1)]
 # remove np so it does not enter the config dict
 del np

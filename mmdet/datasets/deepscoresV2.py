@@ -36,7 +36,7 @@ class DeepScoresV2Dataset(CocoDataset):
 
     def _filter_imgs(self, min_size=32):
         valid_inds = []
-        for i, img_info in enumerate(self.img_infos):
+        for i, img_info in enumerate(self.obb.img_info):
             if self.filter_empty_gt and len(img_info['ann_ids']) == 0:
                 continue
             if min(img_info['width'], img_info['height']) >= min_size:
