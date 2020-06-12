@@ -12,6 +12,7 @@ Created on:
 """
 from .coco import *
 import os
+import json
 from obb_anns import OBBAnns
 
 @DATASETS.register_module
@@ -22,14 +23,14 @@ class DeepScoresV2Dataset(CocoDataset):
         self.obb = OBBAnns(ann_file)
         self.obb.load_annotations()
         self.obb.set_annotation_set_filter(['deepscores'])
-        self.cat_ids = self.obb.get_cats().keys()
+        self.cat_ids = list(self.obb.get_cats().keys())
         self.cat2label = {
             cat_id: i + 1
             for i, cat_id in enumerate(self.cat_ids)
         }
         self.CLASSES = tuple([v["name"] for (k, v) in self.obb.get_cats().items()])
         self.img_ids = [id['id'] for id in self.obb.img_info]
-
+        self.coco = COCO()
         return self.obb.img_info
 
     def get_ann_info(self, idx):
@@ -69,3 +70,72 @@ class DeepScoresV2Dataset(CocoDataset):
             masks=None,
             seg_map=None)
         return ann
+
+    def preare_json_dict(self, results):
+        json_results = {"annotation_set": "deepscores", "proposals": []}
+        for idx in range(len(self)):
+            img_id = self.img_ids[idx]
+            result = results[idx]
+            for label in range(len(result)):
+                bboxes = result[label]
+                for i in range(bboxes.shape[0]):
+                    data = dict()
+                    data['img_id'] = img_id
+                    data['bbox'] = [str(nr) for nr in bboxes[i][0:-1]]
+                    data['score'] = str(bboxes[i][-1])
+                    data['cat_id'] = self.cat_ids[label]
+                    json_results["proposals"].append(data)
+        return json_results
+
+    def write_results_json(self, results, filename=None):
+        if filename is None:
+            filename = "deepscores_results.json"
+        json_results = self.preare_json_dict(results)
+
+        with open(filename, "w") as fo:
+            json.dump(json_results, fo)
+
+        return filename
+
+    def evaluate(self,
+                 results,
+                 metric='bbox',
+                 logger=None,
+                 jsonfile_prefix=None,
+                 classwise=False,
+                 proposal_nums=(100, 300, 1000),
+                 iou_thrs=np.arange(0.5, 0.96, 0.05)):
+        """Evaluation in COCO protocol.
+
+        Args:
+            results (list): Testing results of the dataset.
+            metric (str | list[str]): Metrics to be evaluated.
+            logger (logging.Logger | str | None): Logger used for printing
+                related information during evaluation. Default: None.
+            jsonfile_prefix (str | None): The prefix of json files. It includes
+                the file path and the prefix of filename, e.g., "a/b/prefix".
+                If not specified, a temp file will be created. Default: None.
+            classwise (bool): Whether to evaluating the AP for each class.
+            proposal_nums (Sequence[int]): Proposal number used for evaluating
+                recalls, such as recall@100, recall@1000.
+                Default: (100, 300, 1000).
+            iou_thrs (Sequence[float]): IoU threshold used for evaluating
+                recalls. If set to a list, the average recall of all IoUs will
+                also be computed. Default: 0.5.
+
+        Returns:
+            dict[str: float]
+        """
+
+        metrics = metric if isinstance(metric, list) else [metric]
+        allowed_metrics = ['bbox']
+        for metric in metrics:
+            if metric not in allowed_metrics:
+                raise KeyError(f'metric {metric} is not supported')
+
+        filename = self.write_results_json(results)
+
+        eval_results = {}
+        self.obb.load_proposals(filename)
+        metric_results = self.obb.calculate_metrics()
+        return eval_results
