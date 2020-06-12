@@ -15,7 +15,7 @@ import torch.nn as nn
 from mmcv.cnn import normal_init, ConvModule, Scale, bias_init_with_prob, normal_init
 
 from mmdet.core import distance2bbox, force_fp32, multi_apply, multiclass_nms, mask_target
-from mmdet.ops.tenergy import tenergy_naive
+#from mmdet.ops.tenergy import tenergy_naive
 from mmdet.models.builder import build_loss
 from ..builder import HEADS
 
@@ -812,7 +812,8 @@ class WFCOSHead(nn.Module):
         # Call accumulator function (CUDA C/C++), with channel=1
         # Less energy-levels are faster
         # Doing this before dowsampling smoother , slower
-        mask_ = tenergy_naive(mask_,1,self.max_energy)
+        # TODO: uncomment when energy works again
+        #mask_ = tenergy_naive(mask_,1,self.max_energy)
         # Downsample to feature map size (could also be done after normalization step
         # to reduce jiiter)
         mask_ = nn.functional.interpolate(mask_,size=size_, mode='bicubic')

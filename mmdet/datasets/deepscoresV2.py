@@ -27,7 +27,8 @@ class DeepScoresV2Dataset(CocoDataset):
             cat_id: i + 1
             for i, cat_id in enumerate(self.cat_ids)
         }
-        DeepScoresV2Dataset.CLASSES = tuple([v["name"] for (k, v) in self.obb.get_cats().items()])
+        self.CLASSES = tuple([v["name"] for (k, v) in self.obb.get_cats().items()])
+        self.img_ids = [id['id'] for id in self.obb.img_info]
 
         return self.obb.img_info
 

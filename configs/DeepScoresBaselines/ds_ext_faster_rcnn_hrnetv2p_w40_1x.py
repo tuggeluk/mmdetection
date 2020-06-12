@@ -36,7 +36,7 @@ model = dict(
         feat_channels=256,
         anchor_generator = dict(
             type='AnchorGenerator',
-            scales=[1.0, 2.0, 4.0, 12.0],
+            scales=[1.0, 12.0],
             ratios=[0.05, 0.3, 0.73, 2.5],
             strides=[4, 8, 16, 16, 16]),
         bbox_coder=dict(
@@ -138,8 +138,8 @@ import numpy as np
 train_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(type='LoadAnnotations', with_bbox=True),
-    dict(type='RandomCrop', crop_size=(2600, 3600)),
-    dict(type='Resize', img_scale=tuple((1950, 2700)), keep_ratio=True),
+    dict(type='RandomCrop', crop_size=(2000, 3000)),
+    dict(type='Resize', img_scale=tuple((1000, 2000)), keep_ratio=True),
     dict(type='RandomFlip', flip_ratio=0),
     dict(type='Normalize', **img_norm_cfg),
     dict(type='Pad', size_divisor=32),
@@ -188,7 +188,7 @@ test_pipeline = [
 
 data = dict(
     imgs_per_gpu=1,
-    workers_per_gpu=0,
+    workers_per_gpu=2,
     train=dict(
         type=dataset_type,
         ann_file=data_root + 'deepscores_oriented_train.json',
@@ -230,7 +230,7 @@ total_epochs = 1000
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
 work_dir = './work_dirs/ds_ext_faster_rcnn_hrnetv2p_w40_1x'
-load_from = './work_dirs/ds_ext_faster_rcnn_hrnetv2p_w40_1x/latest.pth'
+load_from = None
 resume_from = None
 workflow = [('train', 1)]
 # remove np so it does not enter the config dict
