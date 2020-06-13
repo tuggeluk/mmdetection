@@ -135,7 +135,7 @@ class DeepScoresV2Dataset(CocoDataset):
 
         filename = self.write_results_json(results)
 
-        eval_results = {}
         self.obb.load_proposals(filename)
         metric_results = self.obb.calculate_metrics()
-        return eval_results
+        print(metric_results)
+        return metric_results
