@@ -21,7 +21,7 @@ model = dict(
         feat_channels=256,
         anchor_generator=dict(
             type='AnchorGenerator',
-            scales=[1.0],
+            scales=[1.0, 2.0, 4.0, 12.0],
             ratios=[0.05, 0.3, 0.73, 2.5],
             strides=[4, 8, 16, 16, 16]),
         bbox_coder=dict(
@@ -43,7 +43,8 @@ model = dict(
             in_channels=256,
             fc_out_channels=1024,
             roi_feat_size=7,
-            num_classes=80,
+            #num_classes=137,
+            num_classes=136,
             bbox_coder=dict(
                 type='DeltaXYWHBBoxCoder',
                 target_means=[0., 0., 0., 0.],
@@ -73,9 +74,9 @@ train_cfg = dict(
         debug=False),
     rpn_proposal=dict(
         nms_across_levels=False,
-        nms_pre=2000,
-        nms_post=1000,
-        max_num=1000,
+        nms_pre=3000,
+        nms_post=2000,
+        max_num=2000,
         nms_thr=0.7,
         min_bbox_size=0),
     rcnn=dict(
@@ -97,13 +98,13 @@ train_cfg = dict(
 test_cfg = dict(
     rpn=dict(
         nms_across_levels=False,
-        nms_pre=1000,
-        nms_post=1000,
-        max_num=1000,
+        nms_pre=3000,
+        nms_post=2000,
+        max_num=2000,
         nms_thr=0.7,
         min_bbox_size=0),
     rcnn=dict(
-        score_thr=0.05, nms=dict(type='nms', iou_thr=0.5), max_per_img=100)
+        score_thr=0.05, nms=dict(type='nms', iou_thr=0.5), max_per_img=2000)
     # soft-nms is also supported for rcnn testing
     # e.g., nms=dict(type='soft_nms', iou_thr=0.5, min_score=0.05)
 )

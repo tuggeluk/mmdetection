@@ -25,12 +25,13 @@ class DeepScoresV2Dataset(CocoDataset):
         self.obb.set_annotation_set_filter(['deepscores'])
         self.cat_ids = list(self.obb.get_cats().keys())
         self.cat2label = {
-            cat_id: i + 1
+            cat_id: i
             for i, cat_id in enumerate(self.cat_ids)
         }
+        self.label2cat = {v: k for k, v in self.cat2label.items()}
         self.CLASSES = tuple([v["name"] for (k, v) in self.obb.get_cats().items()])
         self.img_ids = [id['id'] for id in self.obb.img_info]
-        self.coco = COCO()
+
         return self.obb.img_info
 
     def get_ann_info(self, idx):
@@ -71,7 +72,7 @@ class DeepScoresV2Dataset(CocoDataset):
             seg_map=None)
         return ann
 
-    def preare_json_dict(self, results):
+    def prepare_json_dict(self, results):
         json_results = {"annotation_set": "deepscores", "proposals": []}
         for idx in range(len(self)):
             img_id = self.img_ids[idx]
@@ -83,14 +84,14 @@ class DeepScoresV2Dataset(CocoDataset):
                     data['img_id'] = img_id
                     data['bbox'] = [str(nr) for nr in bboxes[i][0:-1]]
                     data['score'] = str(bboxes[i][-1])
-                    data['cat_id'] = self.cat_ids[label]
+                    data['cat_id'] = self.label2cat[label]
                     json_results["proposals"].append(data)
         return json_results
 
     def write_results_json(self, results, filename=None):
         if filename is None:
             filename = "deepscores_results.json"
-        json_results = self.preare_json_dict(results)
+        json_results = self.prepare_json_dict(results)
 
         with open(filename, "w") as fo:
             json.dump(json_results, fo)
@@ -136,6 +137,6 @@ class DeepScoresV2Dataset(CocoDataset):
         filename = self.write_results_json(results)
 
         self.obb.load_proposals(filename)
-        metric_results = self.obb.calculate_metrics()
+        metric_results = self.obb.calculate_metrics(iou_thrs=iou_thrs, classwise=classwise)
         print(metric_results)
         return metric_results
