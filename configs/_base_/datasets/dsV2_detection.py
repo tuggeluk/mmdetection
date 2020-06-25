@@ -14,35 +14,36 @@ img_norm_cfg = dict(
 train_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(type='LoadAnnotations', with_bbox=True),
-    dict(type='RandomCrop', crop_size=(1600, 1600)),
-    dict(type='Resize', img_scale=tuple((800, 800)), keep_ratio=True),
-    dict(type='RandomFlip', flip_ratio=0),
-    dict(type='Normalize', **img_norm_cfg),
-    dict(type='Pad', size_divisor=32),
-    dict(type='DefaultFormatBundle'),
-    dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels']),
-]
-train_pipeline = [
-    dict(type='LoadImageFromFile'),
-    dict(type='LoadAnnotations', with_bbox=True),
+    dict(type='Resize', img_scale=tuple((2700, 3828)), keep_ratio=True),
+    #dict(type='Resize', img_scale=(1400, 1920), ratio_range=(0.8, 1.0),keep_ratio=True),
     dict(type='RandomCrop', crop_size=(800, 800)),
-    dict(type='Resize', img_scale=tuple((400, 400)), keep_ratio=True),
     dict(type='RandomFlip', flip_ratio=0),
     dict(type='Normalize', **img_norm_cfg),
     dict(type='Pad', size_divisor=32),
     dict(type='DefaultFormatBundle'),
     dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels']),
 ]
+# train_pipeline = [
+#     dict(type='LoadImageFromFile'),
+#     dict(type='LoadAnnotations', with_bbox=True),
+#     dict(type='Resize', img_scale=tuple((800, 800)), keep_ratio=True),
+#     dict(type='RandomCrop', crop_size=(400, 400)),
+#     dict(type='RandomFlip', flip_ratio=0),
+#     dict(type='Normalize', **img_norm_cfg),
+#     dict(type='Pad', size_divisor=32),
+#     dict(type='DefaultFormatBundle'),
+#     dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels']),
+# ]
 
 test_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(
         type='MultiScaleFlipAug',
-        img_scale=(1400, 1900),
+        img_scale=(2700, 3828),
         flip=False,
         transforms=[
-#           dict(type='RandomCrop', crop_size=(200, 200)),
-            dict(type='Resize',  keep_ratio=True),
+            dict(type='Resize', img_scale=(2700, 3828), keep_ratio=True),
+            #dict(type='RandomCrop', crop_size=(800, 800)),
             dict(type='RandomFlip', flip_ratio=0),
             dict(type='Normalize', **img_norm_cfg),
             dict(type='Pad', size_divisor=32),
@@ -81,4 +82,4 @@ data = dict(
         img_prefix=data_root + 'images/',
         pipeline=test_pipeline))
 
-evaluation = dict(interval=1, metric='bbox')
+evaluation = dict(interval=80, metric='bbox')

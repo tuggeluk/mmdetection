@@ -103,9 +103,10 @@ class DeepScoresV2Dataset(CocoDataset):
                  metric='bbox',
                  logger=None,
                  jsonfile_prefix=None,
-                 classwise=False,
+                 classwise=True,
                  proposal_nums=(100, 300, 1000),
-                 iou_thrs=np.arange(0.5, 0.96, 0.05)):
+                 iou_thrs=np.arange(0.5, 0.96, 0.05),
+                 average_thrs=False):
         """Evaluation in COCO protocol.
 
         Args:
@@ -137,6 +138,6 @@ class DeepScoresV2Dataset(CocoDataset):
         filename = self.write_results_json(results)
 
         self.obb.load_proposals(filename)
-        metric_results = self.obb.calculate_metrics(iou_thrs=iou_thrs, classwise=classwise)
+        metric_results = self.obb.calculate_metrics(iou_thrs=iou_thrs, classwise=classwise, average_thrs=average_thrs)
         print(metric_results)
         return metric_results

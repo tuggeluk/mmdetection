@@ -58,6 +58,8 @@ class BBoxTestMixin(object):
         """Test only det bboxes without augmentation."""
         rois = bbox2roi(proposals)
         bbox_results = self._bbox_forward(x, rois)
+        import numpy as np
+        print(np.unique(np.argmax(bbox_results['cls_score'].cpu(),1),return_counts=True))
         img_shape = img_metas[0]['img_shape']
         scale_factor = img_metas[0]['scale_factor']
         det_bboxes, det_labels = self.bbox_head.get_bboxes(
