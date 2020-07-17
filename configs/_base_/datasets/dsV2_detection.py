@@ -39,10 +39,10 @@ test_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(
         type='MultiScaleFlipAug',
-        img_scale=(2700, 3828),
+        img_scale=(1400, 1920),
         flip=False,
         transforms=[
-            dict(type='Resize', img_scale=(2700, 3828), keep_ratio=True),
+            dict(type='Resize', img_scale=(1400, 1920), keep_ratio=True),
             #dict(type='RandomCrop', crop_size=(800, 800)),
             dict(type='RandomFlip', flip_ratio=0),
             dict(type='Normalize', **img_norm_cfg),
@@ -68,17 +68,17 @@ data = dict(
     workers_per_gpu=0,
     train=dict(
         type=dataset_type,
-        ann_file=data_root + 'deepscores_oriented_train.json',
+        ann_file=data_root + 'deepscores_train.json',
         img_prefix=data_root + 'images/',
         pipeline=train_pipeline),
     val=dict(
         type=dataset_type,
-        ann_file=data_root + 'deepscores_oriented_val.json',
+        ann_file=data_root + 'deepscores_val.json',
         img_prefix=data_root + 'images/',
         pipeline=test_pipeline),
     test=dict(
         type=dataset_type,
-        ann_file=data_root + 'deepscores_oriented_val.json',
+        ann_file=data_root + 'deepscores_val.json',
         img_prefix=data_root + 'images/',
         pipeline=test_pipeline))
 

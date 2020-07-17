@@ -139,5 +139,17 @@ class DeepScoresV2Dataset(CocoDataset):
 
         self.obb.load_proposals(filename)
         metric_results = self.obb.calculate_metrics(iou_thrs=iou_thrs, classwise=classwise, average_thrs=average_thrs)
+
+        metric_results = {self.CLASSES[self.cat2label[key]]: value for (key, value) in metric_results.items()}
+
+        # add occurences
+        occurences_by_class = self.obb.get_class_occurences()
+        for (key, value) in metric_results.items():
+            value.update(no_occurences=occurences_by_class[key])
+
+        if True:
+            import pickle
+            pickle.dump(metric_results, open('evaluation_renamed_rcnn.pickle', 'wb'))
         print(metric_results)
         return metric_results
+
