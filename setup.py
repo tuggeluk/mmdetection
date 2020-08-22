@@ -294,14 +294,8 @@ if __name__ == '__main__':
                 sources_cuda=[
                     'src/cuda/carafe_naive_cuda.cpp',
                     'src/cuda/carafe_naive_cuda_kernel.cu'
-                ]),
-            make_cuda_ext(
-                name='tenergy_cuda',
-                module='mmdet.ops.tenergy',
-                sources=[
-                    'src/tenergy_cuda.cpp',
-                    'src/tenergy_cuda_kernel.cu'
                 ])
+
         ],
         cmdclass={'build_ext': BuildExtension},
         zip_safe=False)
