@@ -14,7 +14,7 @@ RUN apt-get update && apt-get install -y git ninja-build libglib2.0-0 libsm6 lib
 
 # Install mmdetection
 RUN conda clean --all
-RUN git clone https://github.com/open-mmlab/mmdetection.git /mmdetection
+RUN git clone --single-branch --branch DSV2_Baseline_FasterRCNN https://github.com/tuggeluk/mmdetection.git
 WORKDIR /mmdetection
 ENV FORCE_CUDA="1"
 RUN pip install cython --no-cache-dir
