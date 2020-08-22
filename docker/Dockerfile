@@ -14,6 +14,7 @@ RUN apt-get update && apt-get install -y git ninja-build libglib2.0-0 libsm6 lib
 
 # Install mmdetection
 RUN conda clean --all
+RUN apt-get update
 RUN git clone --single-branch --branch DSV2_Baseline_FasterRCNN https://github.com/tuggeluk/mmdetection.git /mmdetection
 WORKDIR /mmdetection
 ENV FORCE_CUDA="1"
