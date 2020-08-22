@@ -118,10 +118,12 @@ def main():
     # for backward compatibility
     if 'CLASSES' in checkpoint['meta']:
         model.CLASSES = checkpoint['meta']['CLASSES']
+        print(model.CLASSES)
     else:
         model.CLASSES = dataset.CLASSES
+        print(model.CLASSES)
     model.CLASSES = dataset.CLASSES
-
+    print(model.CLASSES)
     if not distributed:
         model = MMDataParallel(model, device_ids=[0])
         outputs = single_gpu_test(model, data_loader, args.show, args.show_dir,
