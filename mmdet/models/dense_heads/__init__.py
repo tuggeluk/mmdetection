@@ -16,10 +16,11 @@ from .retina_sepbn_head import RetinaSepBNHead
 from .rpn_head import RPNHead
 from .ssd_head import SSDHead
 from .wfcos_head import WFCOSHead
+from.wfcos_head_regression import WFCOSHead_regression
 
 __all__ = [
     'AnchorHead', 'GuidedAnchorHead', 'FeatureAdaption', 'RPNHead',
    'GARPNHead', 'RetinaHead', 'RetinaSepBNHead', 'GARetinaHead', 'SSDHead',
     'FCOSHead', 'RepPointsHead', 'FoveaHead', 'FreeAnchorRetinaHead', 'WFCOSHead',
-    'ATSSHead', 'FSAFHead', 'NASFCOSHead', 'PISARetinaHead', 'PISASSDHead'
+    'ATSSHead', 'FSAFHead', 'NASFCOSHead', 'PISARetinaHead', 'WFCOSHead_regression', 'PISASSDHead'
 ]
