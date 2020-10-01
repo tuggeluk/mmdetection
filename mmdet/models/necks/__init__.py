@@ -6,8 +6,9 @@ from .nas_fpn import NASFPN
 from .nasfcos_fpn import NASFCOS_FPN
 from .pafpn import PAFPN
 from .hrfpn_upsamp import HRFPN_upsamp
+from .rfp import RFP
+from .yolo_neck import YOLOV3Neck
 
 __all__ = [
-    'FPN', 'BFP', 'HRFPN', 'NASFPN', 'FPN_CARAFE', 'PAFPN', 'NASFCOS_FPN', 'HRFPN_upsamp'
+    'FPN', 'BFP', 'HRFPN', 'NASFPN', 'FPN_CARAFE', 'PAFPN', 'NASFCOS_FPN', 'HRFPN_upsamp', 'RFP', 'YOLOV3Neck'
 ]
-
