@@ -5,6 +5,10 @@ using namespace at;  // temporal fix for pytorch<=0.4.1 (see #9848)
 
 #define THREADS_PER_BLOCK 1024
 
+#define CUDA_1D_KERNEL_LOOP(i, n)                            \
+  for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < n; \
+       i += blockDim.x * gridDim.x)
+
 inline int GET_BLOCKS(const int N) {
   int optimal_block_num = (N + THREADS_PER_BLOCK - 1) / THREADS_PER_BLOCK;
   int max_block_num = 65536;
@@ -25,12 +29,14 @@ __device__ inline int Loc2Index(const int n, const int c, const int h,
 }
 
 template <typename scalar_t>
-__global__ void TENERGY(const scalar_t *bottom_masks,
-                                   const int scale_factor, const int k,
-                                   const int height, const int width,const int channels,
-                                   scalar_t *top_data) {
+__global__ void TENERGY(const int nthreads,
+                        const scalar_t *bottom_masks,
+                        const int scale_factor, const int k,
+                        const int height, const int width,const int channels,
+                        scalar_t *top_data) {
   
-    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    //int index = blockIdx.x * blockDim.x + threadIdx.x;
+    CUDA_1D_KERNEL_LOOP(index, nthreads) {
     int pw = index % width;
     int ph = (index / width) % height;
     int c = (index / width / height) % channels;
@@ -69,6 +75,7 @@ __global__ void TENERGY(const scalar_t *bottom_masks,
           }
     }
 }
+}
 
 int TENERGYLauncher(const at::Tensor masks, const int batch_size,
                               const int scale_factor,const int max_energy,
@@ -82,7 +89,7 @@ int TENERGYLauncher(const at::Tensor masks, const int batch_size,
         for( int k = 0;k < max_energy; k++)
         {
         TENERGY<scalar_t>
-            <<<GET_BLOCKS(output_size), THREADS_PER_BLOCK>>>(
+            <<<GET_BLOCKS(output_size), THREADS_PER_BLOCK>>>(output_size,
                 bottom_masks, scale_factor, k, height, width, channels, top_data);
                 cudaDeviceSynchronize();
         }
