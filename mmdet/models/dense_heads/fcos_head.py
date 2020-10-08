@@ -8,6 +8,11 @@ from mmdet.core import distance2bbox, multi_apply, multiclass_nms
 from ..builder import HEADS, build_loss
 from .anchor_free_head import AnchorFreeHead
 
+# Visualization imports
+import debugging.visualization_tools as vt
+from mmcv.visualization import imshow_det_bboxes
+from mmdet.core import tensor2imgs
+import numpy as np
 INF = 1e8
 
 
@@ -18,10 +23,7 @@ class FCOSHead(AnchorFreeHead):
     The FCOS head does not use anchor boxes. Instead bounding boxes are
     predicted at each pixel and a centerness measure is used to supress
     low-quality predictions.
-    Here norm_on_bbox, centerness_on_reg, dcn_on_last_conv are training
-    tricks used in official repo, which will bring remarkable mAP gains
-    of up to 4.9. Please see https://github.com/tianzhi0549/FCOS for
-    more detail.
+
 
     Args:
         num_classes (int): Number of categories excluding the background
