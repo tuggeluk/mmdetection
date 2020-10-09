@@ -52,7 +52,8 @@ class WFCOSHead(nn.Module):
                  assign="all",
                  r=500.,
                  mask_outside=False,
-                 bbox_percent=None):
+                 bbox_percent=None,
+                 **kwargs):
         """
         Creates a head based on FCOS that instead uses an energy_preds map.
 
@@ -297,8 +298,10 @@ class WFCOSHead(nn.Module):
              gt_bboxes,
              gt_labels,
              img_metas,
-             cfg,
-             gt_bboxes_ignore=None):
+             gt_bboxes_ignore=None,
+             *args,
+             **kwargs
+             ):
         """Calculates loss for each of the head outputs.
 
         Calculates a loss for each of the head ouputs based on what was
@@ -319,7 +322,7 @@ class WFCOSHead(nn.Module):
 
         # First create targets
         bbox_targets, label_targets, energy_targets, mask = self.get_targets(
-            gt_bboxes, gt_labels, feat_dims, img_metas)
+            gt_bboxes, gt_labels, gt_masks, feat_dims, img_metas)
 
         # Now reorder the targets so that they're usable and in the same
         # shape as the network outputs.
@@ -485,7 +488,7 @@ class WFCOSHead(nn.Module):
             (x.reshape(-1), y.reshape(-1)), dim=-1) + stride // 2
         return points
 
-    def get_targets(self, gt_bboxes_list, gt_labels_list, gt_masks_list,
+    def get_targets(self, gt_bboxes_list, gt_labels_list,
                     feat_dims, img_metas):
         """Gets targets for each output type.
 
@@ -1236,6 +1239,44 @@ class WFCOSHead(nn.Module):
                     counts_.argmax().to(dtype=torch.float32)/counts_.sum().to(dtype=torch.float32)]))
         return cls_segms, cls_boxes
 
+    def forward_train(self,
+                      x,
+                      img_metas,
+                      gt_bboxes,
+                      gt_labels=None,
+                      gt_bboxes_ignore=None,
+                      proposal_cfg=None,
+                      **kwargs):
+        """
+        Args:
+            x (list[Tensor]): Features from FPN.
+            img_metas (list[dict]): Meta information of each image, e.g.,
+                image size, scaling factor, etc.
+            gt_bboxes (Tensor): Ground truth bboxes of the image,
+                shape (num_gts, 4).
+            gt_labels (Tensor): Ground truth labels of each box,
+                shape (num_gts,).
+            gt_bboxes_ignore (Tensor): Ground truth bboxes to be
+                ignored, shape (num_ignored_gts, 4).
+            proposal_cfg (mmcv.Config): Test / postprocessing configuration,
+                if None, test_cfg would be used
+
+        Returns:
+            tuple:
+                losses: (dict[str, Tensor]): A dictionary of loss components.
+                proposal_list (list[Tensor]): Proposals of each image.
+        """
+        outs = self(x)
+        if gt_labels is None:
+            loss_inputs = outs + (gt_bboxes, img_metas)
+        else:
+            loss_inputs = outs + (gt_bboxes, gt_labels, img_metas)
+        losses = self.loss(*loss_inputs, gt_bboxes_ignore=gt_bboxes_ignore)
+        if proposal_cfg is None:
+            return losses
+        else:
+            proposal_list = self.get_bboxes(*outs, img_metas, cfg=proposal_cfg)
+            return losses, proposal_list
 
 
     def get_visualization(self, input_img, class_names, test_cfg):
