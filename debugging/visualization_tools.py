@@ -127,6 +127,7 @@ def map_color_values(array, n, categorical):
     """
     if categorical:
         colors = CATEGORICAL
+        array = np.array(array)
         array = array.astype('uint8')
         if n > 255:
             # Fall back for more than 255 categories

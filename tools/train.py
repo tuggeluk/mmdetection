@@ -81,7 +81,8 @@ def parse_args():
 
 @master_only
 def maybe_init_wandb(cfg):
-    if 'WandbLoggerHook' in [x["type"] for x in cfg["log_config"]["hooks"]]:
+    if ('WandbLoggerHook' in [x["type"] for x in cfg["log_config"]["hooks"]] or
+        'WandbVisualLoggerHook' in [x["type"] for x in cfg["log_config"]["hooks"]]):
         import wandb
         name = "{}_{}".format(osp.split(cfg.work_dir)[1],
                               time.strftime('%Y.%m.%d--%H.%M.%S'))

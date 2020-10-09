@@ -2,12 +2,8 @@ import os.path as osp
 
 import torch
 
-from mmcv.runner.utils import master_only
+from mmcv.runner.dist_utils import master_only
 from mmcv.runner.hooks.logger.base import LoggerHook
-import numpy as np
-
-from mmcv.visualization import imshow_det_bboxes, imshow_bboxes
-from PIL import Image, ImageDraw, ImageFont
 
 
 class TensorboardLoggerHook(LoggerHook):

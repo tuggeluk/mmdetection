@@ -592,10 +592,11 @@ class FCOSHead(AnchorFreeHead):
         vis = dict()
         batch_size = input_img.shape[0]
         img = tensor2imgs(input_img, **self.last_vals['img_metas'][0]['img_norm_cfg'])[0] #get input image
+        from PIL import Image
         #Image.fromarray(img).show()
         img_gt = imshow_det_bboxes(img.copy(), self.last_vals['gt_bboxes'][0].cpu().numpy(),
                                         self.last_vals['gt_labels'][0].cpu().numpy()-1,
-                                   class_names=classes, show=False, ret=True)
+                                   class_names=classes, show=False)
         #Image.fromarray(img_gt).show()
         vis["img_bbox_gt"] = img_gt
         # predict bboxes
@@ -607,7 +608,7 @@ class FCOSHead(AnchorFreeHead):
                            cfg = test_cfg)[0]
         img_preds = imshow_det_bboxes(img.copy(), pred_bboxes.cpu().numpy(),
                                            pred_labels.cpu().numpy(),
-                                      class_names=classes, show=False, ret=True, score_thr=0.05)
+                                      class_names=classes, show=False, score_thr=0.05)
         vis["img_bbox_pred"] = img_preds
         #Image.fromarray(img_preds).show()
 
@@ -661,7 +662,8 @@ class FCOSHead(AnchorFreeHead):
         self.last_vals['labels'] = [labels-1 for labels in self.last_vals['labels']]
         reshaped_labels = []
         for labels, vis_class in zip(self.last_vals['labels'], classes_vis):
-            reshaped_labels.append(self.cut_batch_reshape(labels,vis_class.shape,batch_size))
+            labels = labels.cpu().numpy()
+            reshaped_labels.append(self.cut_batch_reshape(labels, vis_class.shape, batch_size))
         gt_classes = vt.image_pyramid(vt.colorize_class_preds(reshaped_labels, len(classes)+1),  img.shape[:-1])
         gt_classes = vt.add_class_legend(gt_classes, classes, vt.get_present_classes(reshaped_labels))
         vis["classes_gt"] = gt_classes
@@ -669,7 +671,7 @@ class FCOSHead(AnchorFreeHead):
         stitched = vt.stitch_big_image([[vis["img_bbox_gt"], vis["energy_gt"], vis["classes_gt"]],
                              [vis["img_bbox_pred"], vis["energy_pred"], vis["classes_pred"]]])
 
-        return {"full_image": stitched}
+        return [{"name": "stitched_img", "image": stitched}]
 
 
 
