@@ -13,19 +13,14 @@
 import torch
 import torch.nn as nn
 from mmcv.cnn import normal_init
-from mmcv import Timer
-from mmdet.core import distance2bbox, force_fp32, multi_apply, multiclass_nms, mask_target
-# from mmdet.ops import ConvModule, Scale, build_upsample_layer
-from mmdet.ops.tenergy import tenergy_naive
-from mmdet.ops.tcontour import tcontour_naive
-from mmdet.ops.wcake import wcake_naive
-#
-# from mmdet.core import distance2bbox, force_fp32, multi_apply, multiclass_nms
-# from ..builder import build_loss
+
+
+from mmcv.ops import tenergy_naive
+from mmcv.cnn import bias_init_with_prob, ConvModule, Scale
+
+from mmdet.core import distance2bbox, force_fp32, multi_apply
 from ..builder import HEADS, build_loss
-# from ..utils import  bias_init_with_prob
-# from mmdet.ops import ConvModule, Scale
-#
+
 # # Visualization imports
 import debugging.visualization_tools as vt
 from mmcv.visualization import imshow_det_bboxes
@@ -490,7 +485,7 @@ class WFCOSHead(nn.Module):
             (x.reshape(-1), y.reshape(-1)), dim=-1) + stride // 2
         return points
 
-    def get_targets(self, gt_bboxes_list, gt_labels_list,
+    def get_targets(self, gt_bboxes_list, gt_labels_list, gt_masks_list,
                     feat_dims, img_metas):
         """Gets targets for each output type.
 
@@ -532,7 +527,7 @@ class WFCOSHead(nn.Module):
         assert len(gt_bboxes_list) == len(gt_labels_list)
 
         # Sort gt_bboxes_list by object max edge
-        split_bboxes = self.split_bboxes(gt_bboxes_list, gt_labels_list)
+        split_bboxes, indices = self.split_bboxes(gt_bboxes_list, gt_labels_list)
 
         # Calculate energy_preds for image for each feature level
         gt_bboxes = []
