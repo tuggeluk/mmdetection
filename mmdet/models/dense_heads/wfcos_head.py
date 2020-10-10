@@ -258,7 +258,6 @@ class WFCOSHead(nn.Module):
              gt_bboxes,
              gt_labels,
              img_metas,
-             cfg,
              gt_bboxes_ignore=None):
         """Calculates loss for each of the head outputs.
 
@@ -1069,9 +1068,7 @@ class WFCOSHead(nn.Module):
             bboxes=self.last_vals['bbox_targets'].cpu().numpy(),
             labels=(self.last_vals['gt_labels']).cpu().numpy().astype(int),
             class_names=class_names,
-            show=False,
-            ret=True
-        )
+            show=False)
 
         # Now resize it to the original image size
         vis['img_gt'] = np.array(Image.fromarray(img_gt)
@@ -1102,9 +1099,7 @@ class WFCOSHead(nn.Module):
             labels=det_labels.cpu().numpy().astype(int),
             class_names=class_with_bg,
             score_thr=test_cfg.score_thr,
-            show=False,
-            ret=True
-        )
+            show=False)
 
         # Go through energy and labels
         vis['et'], vis['ep'], vis['lt'], vis['lp'] = [], [], [], []
