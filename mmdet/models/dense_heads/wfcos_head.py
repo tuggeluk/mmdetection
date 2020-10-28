@@ -23,7 +23,7 @@ from ..builder import HEADS, build_loss
 # # Visualization imports
 import debugging.visualization_tools as vt
 from mmcv.visualization import imshow_det_bboxes
-from mmdet.core import tensor2imgs
+from mmcv.image import tensor2imgs
 import numpy as np
 import cv2
 from PIL import Image
