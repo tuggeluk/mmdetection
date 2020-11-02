@@ -64,7 +64,7 @@ model = dict(
             loss_weight=1.
         ),
         split_convs=False,
-        r=500.
+        r=5.
     ))
 # training and testing settings
 train_cfg = dict(
@@ -103,7 +103,7 @@ lr_config = dict(
 checkpoint_config = dict(interval=1)
 # yapf:disable
 log_config = dict(
-    interval=50,
+    interval=1,
     hooks=[
         dict(type='TextLoggerHook'),
         dict(type='WandbVisualLoggerHook')

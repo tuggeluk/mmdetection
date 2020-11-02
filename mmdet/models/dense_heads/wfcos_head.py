@@ -47,10 +47,10 @@ class WFCOSHead(nn.Module):
                  conv_cfg=None,
                  norm_cfg=None,
                  split_convs=False,
-                 assign="all",
-                 r=500.,
+                 assign="min_edge",
+                 r=10,
                  mask_outside=False,
-                 bbox_percent=None,
+                 bbox_portion=1,
                  **kwargs):
         """
         Creates a head based on FCOS that instead uses an energy_preds map.
@@ -85,8 +85,8 @@ class WFCOSHead(nn.Module):
                 "all" will assign each bounding box to every level
             r (float): r variable in the energy map target equation.
             mask_outside (bool): set all areas outside of bounding boxes to zero
-            bbox_percent (float): portion of the bounding box that will be filled
-                with the energy marker, this will override r if its nor None
+            bbox_portion (float): portion of the bounding box that will be filled
+                with the energy marker, this will override r if its not None
         """
         super(WFCOSHead, self).__init__()
 
@@ -132,7 +132,7 @@ class WFCOSHead(nn.Module):
         self.r = r
         self.assign = assign
         self.mask_outside = mask_outside
-        self.bbox_percent = bbox_percent
+        self.bbox_percent = bbox_portion
 
         # Now create the layers
         self._init_layers()
@@ -553,7 +553,6 @@ class WFCOSHead(nn.Module):
             # and dim 1 is the max_edge value
             max_indices = self.sort_bboxes(bbox_list, self.assign)
 
-            # Future TODO: Try sorting by area and see if that works better
             # TODO: Figure out what to do with background class.
             # Then move them to the appropriate level based on strides. The edge
             # size for each level should be [prev_regress_range, regress_range).
@@ -613,7 +612,7 @@ class WFCOSHead(nn.Module):
 
     @staticmethod
     def sort_bboxes(bbox_list, assign="max_edge"):
-        """Sorts bboxes based on max_edge length.
+        """Sorts bboxes based on size.
 
         Args:
             bbox_list (list): The list of bounding boxes to be sorted. The
@@ -702,8 +701,10 @@ class WFCOSHead(nn.Module):
             adder = torch.tensor((0, 0, 1, 1, 0), device=type_dict['device'])
             adder = adder.repeat(bboxes.shape[0], 1)
 
+            # scale down bounding boxes to feature size, add 1 to x2,y2 to avoid boxes with size zero
             grid_bounds = torch.floor(bboxes * scale_factor).long() + adder
 
+            # create meshgrid
             x_index = torch.arange(0, feat_dim[1], **type_dict).repeat(
                 feat_dim[0], 1)
             y_index = torch.arange(0, feat_dim[0], **type_dict).repeat(
@@ -720,20 +721,27 @@ class WFCOSHead(nn.Module):
                 else:
                     mask = torch.ones_like(energy_layers[i]).to(dtype=torch.bool)
 
-                bbox_dist = torch.tensor((bbox[0] + bbox[2],
-                                          bbox[1] + bbox[3]),
-                                         **type_dict)
+                # bbox_dist = torch.tensor((bbox[0] + bbox[2],
+                #                           bbox[1] + bbox[3]),
+                #                          **type_dict)
 
-                x_dist = torch.abs((bbox_dist[0] - (2. * x_index[mask]
-                                                    / x_scale_factor)) / 2)
+                bbox_center = torch.tensor((gb[0] + gb[2],
+                                          gb[1] + gb[3]),
+                                         **type_dict)/2
 
-                y_dist = torch.abs((bbox_dist[1] - (2. * y_index[mask]
-                                                    / y_scale_factor)) / 2)
+                # x_dist = torch.abs((bbox_dist[0] - (2. * x_index[mask]
+                #                                     / x_scale_factor)) / 2)
+                #
+                # y_dist = torch.abs((bbox_dist[1] - (2. * y_index[mask]
+                #                                     / y_scale_factor)) / 2)
+
+                x_dist = torch.abs(bbox_center[0] - x_index[mask])
+                y_dist = torch.abs(bbox_center[1] - y_index[mask])
 
                 if self.bbox_percent is not None:
                     # distances relative to the bbox size
-                    bbox_size = torch.tensor((bbox[2]-bbox[0],
-                                              bbox[3]- bbox[1]),
+                    bbox_size = torch.tensor((gb[2]-gb[0],
+                                              gb[3]-gb[1]),
                                              **type_dict)
 
                     x_dist = x_dist / bbox_size[0]
@@ -751,7 +759,7 @@ class WFCOSHead(nn.Module):
                     val = 1 - (tot_dist / self.r)
 
                 if self.max_energy != 1:
-                    val = torch.floor(val * self.max_energy)
+                    val = torch.floor(val * (self.max_energy-1))
 
                 # torch.max to eliminate negative numbers. torch.max is
                 # approximately 20 times faster than using indexing
