@@ -1,4 +1,5 @@
 from .bfp import BFP
+from .channel_mapper import ChannelMapper
 from .fpn import FPN
 from .fpn_carafe import FPN_CARAFE
 from .hrfpn import HRFPN
@@ -10,5 +11,5 @@ from .rfp import RFP
 from .yolo_neck import YOLOV3Neck
 
 __all__ = [
-    'FPN', 'BFP', 'HRFPN', 'NASFPN', 'FPN_CARAFE', 'PAFPN', 'NASFCOS_FPN', 'HRFPN_upsamp', 'RFP', 'YOLOV3Neck'
+    'FPN', 'BFP', 'HRFPN', 'NASFPN', 'FPN_CARAFE', 'PAFPN', 'NASFCOS_FPN', 'HRFPN_upsamp', 'RFP', 'YOLOV3Neck', 'ChannelMapper'
 ]
