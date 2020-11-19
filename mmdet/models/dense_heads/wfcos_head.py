@@ -38,7 +38,7 @@ class WFCOSHead(nn.Module):
                  max_energy,
                  feat_channels=256,
                  stacked_convs=4,
-                 strides=(4, 8, 16, 32, 64),
+                 strides=(8, 16, 32, 64, 128),
                  regress_ranges=((-1, 64), (64, 128), (128, 256), (256, 512),
                                  (512, INF)),
                  loss_cls=None,
@@ -46,6 +46,7 @@ class WFCOSHead(nn.Module):
                  loss_energy=None,
                  conv_cfg=None,
                  norm_cfg=None,
+                 energy_on_reg = False,
                  split_convs=False,
                  assign="min_edge",
                  r=10,
@@ -76,6 +77,8 @@ class WFCOSHead(nn.Module):
             the stacked convolution.
             norm_cfg: A description of the normalization configuration of the
             layers of the stacked convolution.
+            energy_on_reg (bool): move energy prediction to regression convolutional
+                stack. (takes no effect if split_convs is true)
             split_convs (bool): Whether or not to split the classification and
                 energy_preds map convolution stacks. False means that the
                 classification energy_preds map shares the same convolution
@@ -128,6 +131,7 @@ class WFCOSHead(nn.Module):
 
         # WFCOS variables
         self.max_energy = max_energy
+        self.energy_on_reg = energy_on_reg
         self.split_convs = split_convs
         self.r = r
         self.assign = assign
@@ -234,16 +238,21 @@ class WFCOSHead(nn.Module):
             cls_feat = cls_layer(cls_feat)
         cls_score = self.wfcos_cls(cls_feat)
 
+        for reg_layer in self.reg_convs:
+            reg_feat = reg_layer(reg_feat)
+
         if self.split_convs:
             energy_feat = x
             for energy_layer in self.energy_convs:
                 energy_feat = energy_layer(energy_feat)
             energy = self.wfcos_energy(energy_feat)
         else:
-            energy = self.wfcos_energy(cls_feat)
+            if self.energy_on_reg:
+                energy = self.wfcos_energy(reg_feat)
+            else:
+                energy = self.wfcos_energy(cls_feat)
 
-        for reg_layer in self.reg_convs:
-            reg_feat = reg_layer(reg_feat)
+
         # scale the bbox_pred of different level
         # float to avoid overflow when enabling FP16
         bbox_pred = scale(self.wfcos_reg(reg_feat)).float().exp()
