@@ -1,11 +1,10 @@
-import logging
-
 import torch.nn as nn
 from mmcv.cnn import (build_conv_layer, build_norm_layer, constant_init,
                       kaiming_init)
 from mmcv.runner import load_checkpoint
 from torch.nn.modules.batchnorm import _BatchNorm
 
+from mmdet.utils import get_root_logger
 from ..builder import BACKBONES
 from .resnet import BasicBlock, Bottleneck
 
@@ -44,18 +43,18 @@ class HRModule_upsamp(nn.Module):
     def _check_branches(self, num_branches, num_blocks, in_channels,
                         num_channels):
         if num_branches != len(num_blocks):
-            error_msg = 'NUM_BRANCHES({}) <> NUM_BLOCKS({})'.format(
-                num_branches, len(num_blocks))
+            error_msg = f'NUM_BRANCHES({num_branches}) ' \
+                f'!= NUM_BLOCKS({len(num_blocks)})'
             raise ValueError(error_msg)
 
         if num_branches != len(num_channels):
-            error_msg = 'NUM_BRANCHES({}) <> NUM_CHANNELS({})'.format(
-                num_branches, len(num_channels))
+            error_msg = f'NUM_BRANCHES({num_branches}) ' \
+                f'!= NUM_CHANNELS({len(num_channels)})'
             raise ValueError(error_msg)
 
         if num_branches != len(in_channels):
-            error_msg = 'NUM_BRANCHES({}) <> NUM_INCHANNELS({})'.format(
-                num_branches, len(in_channels))
+            error_msg = f'NUM_BRANCHES({num_branches}) ' \
+                f'!= NUM_INCHANNELS({len(in_channels)})'
             raise ValueError(error_msg)
 
     def _make_one_branch(self,
@@ -174,6 +173,7 @@ class HRModule_upsamp(nn.Module):
         return nn.ModuleList(fuse_layers)
 
     def forward(self, x):
+        """Forward function."""
         if self.num_branches == 1:
             return [self.branches[0](x[0])]
 
@@ -201,7 +201,7 @@ class HRNet_upsamp(nn.Module):
 
     Args:
         extra (dict): detailed configuration for each stage of HRNet.
-        in_channels (int): Number of input image channels. Normally 3.
+        in_channels (int): Number of input image channels. Default: 3.
         conv_cfg (dict): dictionary to construct and config conv layer.
         norm_cfg (dict): dictionary to construct and config norm layer.
         norm_eval (bool): Whether to set norm layers to eval mode, namely,
@@ -295,7 +295,9 @@ class HRNet_upsamp(nn.Module):
 
         self.add_module(self.norm2_name, norm2)
         self.relu = nn.ReLU(inplace=True)
+        # start upsamp diff
         #self.do_upsample = nn.Upsample(scale_factor=2,mode='bilinear')
+        # end upsamp diff
         # stage 1
         self.stage1_cfg = self.extra['stage1']
         num_channels = self.stage1_cfg['num_channels'][0]
@@ -331,6 +333,7 @@ class HRNet_upsamp(nn.Module):
             self.stage3_cfg, num_channels)
 
         # stage 4
+        # start upsamp diff
         deconv_cfg ={}
         deconv_cfg["NUM_CHANNELS"] = [32,64,128,256]
         deconv_cfg["NUM_DECONVS"] = 1
@@ -341,6 +344,7 @@ class HRNet_upsamp(nn.Module):
            deconv_cfg, pre_stage_channels)
 						
         #self.upsample = nn.Upsample(scale_factor=2,mode='bilinear')
+        # end upsamp diff
         self.stage4_cfg = self.extra['stage4']
         num_channels = self.stage4_cfg['num_channels']
         block_type = self.stage4_cfg['block']
@@ -351,20 +355,22 @@ class HRNet_upsamp(nn.Module):
                                                        num_channels)
         self.stage4, pre_stage_channels = self._make_stage(
             self.stage4_cfg, num_channels)
-						
+        # start upsamp diff
         #deconv_cfg["NUM_BASIC_BLOCKS"] = 1
         self.num_deconvs = len(pre_stage_channels) #deconv_cfg["NUM_DECONVS"]
         self.deconv_layers_2 = self._make_deconv_layers(
             deconv_cfg, pre_stage_channels)
-						
+        # end upsamp diff
         
 
     @property
     def norm1(self):
+        """nn.Module: the normalization layer named "norm1" """
         return getattr(self, self.norm1_name)
 
     @property
     def norm2(self):
+        """nn.Module: the normalization layer named "norm2" """
         return getattr(self, self.norm2_name)
 
     def _make_transition_layer(self, num_channels_pre_layer,
@@ -412,7 +418,7 @@ class HRNet_upsamp(nn.Module):
                 transition_layers.append(nn.Sequential(*conv_downsamples))
 
         return nn.ModuleList(transition_layers)
-
+    # start upsamp diff
     def _make_deconv_layers(self, deconv_cfg, input_channels):
         
 
@@ -507,7 +513,7 @@ class HRNet_upsamp(nn.Module):
                 transition_layers.append(nn.Sequential(*conv_downsamples))
 
         return nn.ModuleList(transition_layers)
-
+    # end upsamp diff
     def _make_layer(self, block, inplanes, planes, blocks, stride=1):
         downsample = None
         if stride != 1 or inplanes != planes * block.expansion:
@@ -573,8 +579,14 @@ class HRNet_upsamp(nn.Module):
         return nn.Sequential(*hr_modules), in_channels
 
     def init_weights(self, pretrained=None):
+        """Initialize the weights in backbone.
+
+        Args:
+            pretrained (str, optional): Path to pre-trained weights.
+                Defaults to None.
+        """
         if isinstance(pretrained, str):
-            logger = logging.getLogger()
+            logger = get_root_logger()
             load_checkpoint(self, pretrained, strict=False, logger=logger)
         elif pretrained is None:
             for m in self.modules():
@@ -593,7 +605,7 @@ class HRNet_upsamp(nn.Module):
             raise TypeError('pretrained must be a str or None')
 
     def forward(self, x):
-
+        """Forward function."""
         x = self.conv1(x)
         x = self.norm1(x)
         x = self.relu(x)
@@ -617,8 +629,10 @@ class HRNet_upsamp(nn.Module):
             else:
                 x_list.append(y_list[i])
         y_list = self.stage3(x_list)
+        #start upsamp_diff
         for ikj in range(len(y_list)):
            y_list[ikj]=self.deconv_layers[ikj](y_list[ikj])
+        #end upsamp diff
         x_list = []
         for i in range(self.stage4_cfg['num_branches']):
             if self.transition3[i] is not None:
@@ -627,7 +641,9 @@ class HRNet_upsamp(nn.Module):
                 x_list.append(y_list[i])
 
         y_list = self.stage4(x_list)
+
         return y_list
+        # start upsamp diff
         # final_outputs=[]
         # for i in range(self.num_deconvs):
         #     x = y_list[i]
@@ -635,8 +651,10 @@ class HRNet_upsamp(nn.Module):
         #     final_outputs.append(x)
         #
         # return final_outputs
-
+        # end upsamp diff
     def train(self, mode=True):
+        """Convert the model into training mode whill keeping the normalization
+        layer freezed."""
         super(HRNet_upsamp, self).train(mode)
         if mode and self.norm_eval:
             for m in self.modules():

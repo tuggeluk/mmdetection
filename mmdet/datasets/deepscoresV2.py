@@ -23,6 +23,7 @@ class DeepScoresV2Dataset(CocoDataset):
         self.obb = OBBAnns(ann_file)
         self.obb.load_annotations()
         self.obb.set_annotation_set_filter(['deepscores'])
+        self.obb.set_class_blacklist(["staff"])
         self.cat_ids = list(self.obb.get_cats().keys())
         self.cat2label = {
             cat_id: i

@@ -291,7 +291,7 @@ class HRNet(nn.Module):
             64,
             64,
             kernel_size=3,
-            stride=2,
+            stride=1,
             padding=1,
             bias=False)
 
