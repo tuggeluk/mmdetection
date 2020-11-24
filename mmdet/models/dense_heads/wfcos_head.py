@@ -325,7 +325,7 @@ class WFCOSHead(nn.Module):
                                     1 / num_zero_elements,
                                     device=flat_energy_targets.device)
         energy_weights[non_zero_elements] = 1 / num_nonzero_elements
-
+        energy_weights = energy_weights/sum(energy_weights)*energy_weights.shape[0]
         # Then calculate energy losses.
         loss_energy = self.loss_energy(
             torch.cat(flat_energy_preds),

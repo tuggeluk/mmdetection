@@ -46,7 +46,7 @@ model = dict(
         max_energy=20,
         stacked_convs=4,
         feat_channels=256,
-        strides=[2, 4, 8],
+        strides=[1, 2, 4],
         regress_ranges=((-1, 9), (9, 20), (20, 1e8)),
         loss_cls=dict(
             type='FocalLoss',
@@ -102,10 +102,10 @@ lr_config = dict(
     warmup_iters=500,
     warmup_ratio=1.0/3,
     step=[16, 22])
-checkpoint_config = dict(interval=1)
+checkpoint_config = dict(interval=100)
 # yapf:disable
 log_config = dict(
-    interval=1,
+    interval=50,
     hooks=[
         dict(type='TextLoggerHook'),
         dict(type='WandbVisualLoggerHook')
