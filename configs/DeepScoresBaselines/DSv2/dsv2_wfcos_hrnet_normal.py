@@ -120,7 +120,7 @@ train_pipeline = [
     dict(type='LoadAnnotations', with_bbox=True),
     dict(type='Resize', img_scale=tuple((2700, 3828)), keep_ratio=True),
     #dict(type='Resize', img_scale=tuple((1400, 1920)), keep_ratio=True),
-    dict(type='RandomCrop', crop_size=(500, 500)),
+    dict(type='RandomCrop', crop_size=(1000, 500)),
     dict(type='RandomFlip', flip_ratio=0.0),
     dict(type='Normalize', **img_norm_cfg),
     dict(type='Pad', size_divisor=32),
