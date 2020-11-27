@@ -1,6 +1,3 @@
-_base_ = [
-    '../../_base_/schedules/schedule_1x.py', '../../_base_/default_runtime.py'
-]
 # model settings
 model = dict(
     type='FCOS',
@@ -76,7 +73,7 @@ test_cfg = dict(
 # optimizer
 optimizer = dict(
     type='SGD',
-    lr=0.001,
+    lr=0.005,
     momentum=0.9,
     weight_decay=0.0001,
     paramwise_cfg=dict(bias_lr_mult=2., bias_decay_mult=0.))
@@ -85,9 +82,10 @@ optimizer_config = dict(grad_clip=None)
 lr_config = dict(
     policy='step',
     warmup='constant',
-    warmup_iters=500,
-    warmup_ratio=1.0 / 3,
-    step=[8, 11])
+    warmup_iters=3000,
+    warmup_ratio=1.0 / 4,
+    gamma=0.5,
+    step=[80, 160])
 checkpoint_config = dict(interval=100)
 # yapf:disable
 log_config = dict(
@@ -154,7 +152,7 @@ data = dict(
         img_prefix=data_root + 'images/',
         pipeline=test_pipeline))
 
-evaluation = dict(interval=80, metric='bbox')
+evaluation = dict(interval=1000, metric='bbox')
 # yapf:enable
 # runtime settings
 total_epochs = 1000
