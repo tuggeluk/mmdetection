@@ -106,6 +106,7 @@ log_config = dict(
     interval=1,
     hooks=[
         dict(type='TextLoggerHook'),
+        dict(type='TensorboardLoggerHook'),
         dict(type='WandbVisualLoggerHook')
     ])
 # yapf:enable
@@ -122,7 +123,7 @@ workflow = [('train', 1)]
 
 # wandb settings
 wandb_cfg = dict(
-    entity='warp-net',
+    entity='raember',
     project='fcos-wfcos-baseline-ds_ext',
     dryrun=False
 )
