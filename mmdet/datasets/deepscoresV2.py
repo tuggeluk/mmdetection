@@ -18,6 +18,20 @@ from obb_anns import OBBAnns
 @DATASETS.register_module
 class DeepScoresV2Dataset(CocoDataset):
 
+    def __init__(self,
+                 ann_file,
+                 pipeline,
+                 classes=None,
+                 data_root=None,
+                 img_prefix='',
+                 seg_prefix=None,
+                 proposal_file=None,
+                 test_mode=False,
+                 filter_empty_gt=True,
+                 use_oriented_bboxes=True):
+        super(DeepScoresV2Dataset, self).__init__(ann_file, pipeline, classes, data_root, img_prefix, seg_prefix, proposal_file, test_mode, filter_empty_gt)
+        self.use_oriented_bboxes = use_oriented_bboxes
+
 
     def load_annotations(self, ann_file):
         self.obb = OBBAnns(ann_file)
@@ -50,14 +64,14 @@ class DeepScoresV2Dataset(CocoDataset):
         img_info, ann_info = img_info[0], ann_info[0]
         gt_bboxes = []
         gt_labels = []
-        gt_bboxes_ignore = np.zeros((0, 4), dtype=np.float32)
+        gt_bboxes_ignore = np.zeros((0, 8 if self.use_oriented_bboxes else 4), dtype=np.float32)
 
         for i, ann in ann_info.iterrows():
             # we have no ignore feature
             if ann['area'] <= 0:
                 continue
 
-            bbox = ann['a_bbox']
+            bbox = ann['o_bbox' if self.use_oriented_bboxes else 'a_bbox']
             gt_bboxes.append(bbox)
             gt_labels.append(self.cat2label[ann['cat_id'][0]])
 

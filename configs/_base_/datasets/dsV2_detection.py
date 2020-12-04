@@ -70,16 +70,19 @@ data = dict(
         type=dataset_type,
         ann_file=data_root + 'deepscores_train.json',
         img_prefix=data_root + 'images/',
-        pipeline=train_pipeline),
+        pipeline=train_pipeline,
+        use_oriented_bboxes=True),
     val=dict(
         type=dataset_type,
         ann_file=data_root + 'deepscores_test.json',
         img_prefix=data_root + 'images/',
-        pipeline=test_pipeline),
+        pipeline=test_pipeline,
+        use_oriented_bboxes=True),
     test=dict(
         type=dataset_type,
         ann_file=data_root + 'deepscores_test.json',
         img_prefix=data_root + 'images/',
-        pipeline=test_pipeline))
+        pipeline=test_pipeline,
+        use_oriented_bboxes=True))
 
 evaluation = dict(interval=80, metric='bbox')

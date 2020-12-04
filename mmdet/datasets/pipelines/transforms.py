@@ -209,8 +209,17 @@ class Resize(object):
                     backend=self.backend)
             results[key] = img
 
-            scale_factor = np.array([w_scale, h_scale, w_scale, h_scale],
-                                    dtype=np.float32)
+            #TODO: fixme
+            if results['gt_bboxes'].shape[1] == 4:
+                scale_factor = np.array([w_scale, h_scale, w_scale, h_scale],
+                                        dtype=np.float32)
+            elif results['gt_bboxes'].shape[1] == 8:
+                scale_factor = np.array([w_scale, h_scale, w_scale, h_scale,
+                                         w_scale, h_scale, w_scale, h_scale],
+                                        dtype=np.float32)
+            else:
+                raise Exception("Bruf")
+
             results['img_shape'] = img.shape
             # in case that there is no padding
             results['pad_shape'] = img.shape
@@ -625,13 +634,28 @@ class RandomCrop(object):
         # crop bboxes accordingly and clip to the image boundary
         for key in results.get('bbox_fields', []):
             # e.g. gt_bboxes and gt_bboxes_ignore
-            bbox_offset = np.array([offset_w, offset_h, offset_w, offset_h],
-                                   dtype=np.float32)
+
+            #TODO: fixme
+            if results['gt_bboxes'].shape[1] == 4:
+                bbox_offset = np.array([offset_w, offset_h, offset_w, offset_h],
+                                       dtype=np.float32)
+            elif results['gt_bboxes'].shape[1] == 8:
+                bbox_offset = np.array([offset_w, offset_h, offset_w, offset_h,
+                                        offset_w, offset_h, offset_w, offset_h],
+                                       dtype=np.float32)
+            else:
+                raise Exception("Bruf")
+
             bboxes = results[key] - bbox_offset
             bboxes[:, 0::2] = np.clip(bboxes[:, 0::2], 0, img_shape[1])
             bboxes[:, 1::2] = np.clip(bboxes[:, 1::2], 0, img_shape[0])
-            valid_inds = (bboxes[:, 2] > bboxes[:, 0]) & (
-                bboxes[:, 3] > bboxes[:, 1])
+
+            if results['gt_bboxes'].shape[1] == 4:
+                valid_inds = (bboxes[:, 2] > bboxes[:, 0]) & (
+                    bboxes[:, 3] > bboxes[:, 1])
+            else:
+                #TODO: Check validity of bboxes with more than 2 corners
+                valid_inds = np.ones(bboxes.shape[0], dtype=bool)
             # If the crop does not contain any gt-bbox area and
             # self.allow_negative_crop is False, skip this image.
             if (key == 'gt_bboxes' and not valid_inds.any()
