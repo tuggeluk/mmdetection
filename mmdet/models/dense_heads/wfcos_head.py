@@ -16,6 +16,7 @@ from mmcv.cnn import normal_init
 
 from mmcv.ops import tenergy_naive
 from mmcv.cnn import bias_init_with_prob, ConvModule, Scale
+from typing import Tuple, NamedTuple
 
 from mmdet.core import distance2bbox, force_fp32, multi_apply, multiclass_nms
 from ..builder import HEADS, build_loss
@@ -476,7 +477,7 @@ class WFCOSHead(nn.Module):
             for j, feat_level_bboxes in enumerate(bboxes):
                 img_shape = img_metas[i]['pad_shape']
 
-                feature_energy = self.get_energy_single(feat_dims[j],
+                feature_energy: torch.Tensor = self.get_energy_single(feat_dims[j],
                                                         img_shape,
                                                         feat_level_bboxes)
                 image_energy.append(feature_energy.values)
@@ -680,6 +681,10 @@ class WFCOSHead(nn.Module):
             torch.return_types.max: The max energy values and the bounding
                 box they belong to.
         """
+        return self._get_energy_single_old(feat_dim, img_size, bboxes)
+
+    def _get_energy_single_old(self, feat_dim: torch.Size, img_size: Tuple[int, int, int], bboxes: torch.Tensor)\
+            -> NamedTuple("max", (('values', torch.Tensor), ('indices', torch.LongTensor))):
         type_dict = {'dtype': bboxes.dtype, 'device': bboxes.device}
 
         if not bboxes.shape[0] == 0:
@@ -771,6 +776,103 @@ class WFCOSHead(nn.Module):
         else:
             energy_layers = torch.zeros((1, feat_dim[0], feat_dim[1]),
                                         **type_dict)
+
+        return energy_layers.max(dim=0)
+
+    def _get_energy_single_new(self, feat_dim: torch.Size, img_size: Tuple[int, int, int], bboxes: torch.Tensor)\
+            -> NamedTuple("max", (('values', torch.Tensor), ('indices', torch.LongTensor))):
+        type_dict = {'dtype': bboxes.dtype, 'device': bboxes.device}
+
+        n_bboxes = bboxes.shape[0]
+
+        if n_bboxes == 0:  # No bboxes to calculate
+            energy_layers = torch.zeros((1, feat_dim[0], feat_dim[1]), **type_dict)
+        else:
+            # First create an n dimensional tensor, where n is the number of
+            # bboxes
+            energy_layers = [
+                torch.zeros([feat_dim[0], feat_dim[1]], **type_dict)
+                for _ in range(n_bboxes)]
+            zero_tensor = torch.tensor(0., **type_dict)
+
+            # Now cast each bbox to each cell in the energy layer that it covers
+            # First bounds of grid squares that have a bbox in them
+            x_scale_factor = feat_dim[1] / img_size[1]
+            y_scale_factor = feat_dim[0] / img_size[0]
+            scale_factor = torch.tensor((x_scale_factor, y_scale_factor,
+                                         x_scale_factor, y_scale_factor,
+                                         1.), **type_dict)
+            scale_factor = scale_factor.repeat(n_bboxes, 1)
+
+            # scale down bounding boxes to feature size, add 1 to x2,y2 to avoid boxes with size zero
+            adder = torch.tensor((0, 0, 1, 1, 0), device=type_dict['device'])
+            adder = adder.repeat(n_bboxes, 1)
+            grid_bounds = torch.floor(bboxes * scale_factor).long() + adder
+
+            # create meshgrid
+            x_index = torch.arange(0, feat_dim[1], **type_dict).repeat(
+                feat_dim[0], 1)
+            y_index = torch.arange(0, feat_dim[0], **type_dict).repeat(
+                feat_dim[1], 1).transpose(0, 1)
+
+            # Fill each energy layer. This is done this way to allow for
+            # vectorized calculations.
+            for i, (gb, bbox) in enumerate(zip(grid_bounds, bboxes)):
+                # Go through each bbox. First create the mask of grid areas
+                # where the bounding box exists.
+                if self.mask_outside:
+                    mask = torch.zeros_like(energy_layers[i]).to(dtype=torch.bool)
+                    mask[gb[1]:gb[3], gb[0]:gb[2]] = True
+                else:
+                    mask = torch.ones_like(energy_layers[i]).to(dtype=torch.bool)
+
+                # bbox_dist = torch.tensor((bbox[0] + bbox[2],
+                #                           bbox[1] + bbox[3]),
+                #                          **type_dict)
+
+                bbox_center = torch.tensor((gb[0] + gb[2],
+                                          gb[1] + gb[3]),
+                                         **type_dict)/2
+
+                # x_dist = torch.abs((bbox_dist[0] - (2. * x_index[mask]
+                #                                     / x_scale_factor)) / 2)
+                #
+                # y_dist = torch.abs((bbox_dist[1] - (2. * y_index[mask]
+                #                                     / y_scale_factor)) / 2)
+
+                x_dist = torch.abs(bbox_center[0] - x_index[mask])
+                y_dist = torch.abs(bbox_center[1] - y_index[mask])
+
+                if self.bbox_percent is not None:
+                    # distances relative to the bbox size
+                    bbox_size = torch.tensor((gb[2]-gb[0],
+                                              gb[3]-gb[1]),
+                                             **type_dict)
+
+                    x_dist = x_dist / bbox_size[0]
+                    y_dist = y_dist / bbox_size[1]
+
+                # Multiplied by self is faster than tensor.pow(2) by about 30%
+                tot_dist = torch.sqrt((x_dist * x_dist) + (y_dist * y_dist))
+
+                if self.bbox_percent is not None:
+                    # energy marker based off bounding box size
+                    val = 1 - (tot_dist / self.bbox_percent)
+
+                else:
+                    # energy marker based off fixed radius
+                    val = 1 - (tot_dist / self.r)
+
+                if self.max_energy != 1:
+                    val = torch.floor(val * (self.max_energy-1))
+
+                # torch.max to eliminate negative numbers. torch.max is
+                # approximately 20 times faster than using indexing
+                val = torch.max(val, zero_tensor)
+
+                energy_layers[i][mask] = val
+            energy_layers = torch.cat([torch.unsqueeze(layer, 0)
+                                       for layer in energy_layers])
 
         return energy_layers.max(dim=0)
 
