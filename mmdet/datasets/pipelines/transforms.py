@@ -346,7 +346,7 @@ class RandomFlip(object):
         elif flip_ratio is None:
             pass
         else:
-            raise ValueError('flip_ratios must be None, float, '
+             raise ValueError('flip_ratios must be None, float, '
                              'or list of float')
         self.flip_ratio = flip_ratio
 

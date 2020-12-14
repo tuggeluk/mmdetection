@@ -108,6 +108,7 @@ class RPNHead(RPNTestMixin, AnchorHead):
         cfg = self.test_cfg if cfg is None else cfg
         # bboxes from different level should be independent during NMS,
         # level_ids are used as labels for batched NMS to separate them
+
         level_ids = []
         mlvl_scores = []
         mlvl_bbox_preds = []
