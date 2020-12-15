@@ -1,6 +1,5 @@
 _base_ = [
-    '../../_base_/datasets/dsV2_detection.py',
-    '../../_base_/schedules/schedule_1x.py', '../../_base_/default_runtime.py'
+    '../../_base_/datasets/dsV2_detection.py'
 ]
 # model settings
 model = dict(
@@ -13,8 +12,8 @@ model = dict(
                 num_modules=1,
                 num_branches=1,
                 block='BOTTLENECK',
-                num_blocks=(4,),
-                num_channels=(64,)),
+                num_blocks=(4, ),
+                num_channels=(64, )),
             stage2=dict(
                 num_modules=1,
                 num_branches=2,
@@ -26,16 +25,16 @@ model = dict(
                 num_branches=3,
                 block='BASIC',
                 num_blocks=(4, 4, 4),
-                num_channels=(32, 64, 64)),
+                num_channels=(32, 64, 128)),
             stage4=dict(
                 num_modules=3,
-                num_branches=3,
+                num_branches=4,
                 block='BASIC',
-                num_blocks=(4, 4, 4),
-                num_channels=(32, 64, 64)))),
+                num_blocks=(4, 4, 4, 4),
+                num_channels=(32, 64, 128, 256)))),
     neck=dict(
         type='HRFPN_upsamp',
-        in_channels=[32, 64, 64],
+        in_channels=[32, 64, 128, 256],
         out_channels=256,
         stride=1,
         num_outs=3),
@@ -45,7 +44,7 @@ model = dict(
         in_channels=256,
         stacked_convs=4,
         feat_channels=256,
-        strides=[1, 2, 4],
+        strides=[2, 4, 8],
         regress_ranges=((-1, 9), (9, 20), (20, 1e8)),
         loss_cls=dict(
             type='FocalLoss',
@@ -72,23 +71,24 @@ test_cfg = dict(
     min_bbox_size=0,
     score_thr=0.05,
     nms=dict(type='nms', iou_thr=0.5),
-    max_per_img=100)
+    max_per_img=1000)
 #
 # optimizer
 optimizer = dict(
     type='SGD',
-    lr=0.01,
+    lr=0.001,
     momentum=0.9,
     weight_decay=0.0001,
     paramwise_cfg=dict(bias_lr_mult=2., bias_decay_mult=0.))
-optimizer_config = dict(grad_clip=None)
+optimizer_config = dict(_delete_=True, grad_clip=dict(max_norm=35, norm_type=2))
 # learning policy
 lr_config = dict(
     policy='step',
     warmup='constant',
-    warmup_iters=500,
-    warmup_ratio=1.0 / 3,
-    step=[8, 11])
+    warmup_iters=3000,
+    warmup_ratio=1.0 / 4,
+    gamma=0.5,
+    step=[80, 160])
 checkpoint_config = dict(interval=100)
 # yapf:disable
 log_config = dict(
@@ -106,8 +106,8 @@ img_norm_cfg = dict(
 train_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(type='LoadAnnotations', with_bbox=True),
-    #dict(type='Resize', img_scale=tuple((2700, 3828)), keep_ratio=True),
-    dict(type='Resize', img_scale=tuple((1400, 1920)), keep_ratio=True),
+    dict(type='Resize', img_scale=tuple((2700, 3828)), keep_ratio=True),
+    #dict(type='Resize', img_scale=tuple((1400, 1920)), keep_ratio=True),
     dict(type='RandomCrop', crop_size=(500, 500)),
     dict(type='RandomFlip', flip_ratio=0.0),
     dict(type='Normalize', **img_norm_cfg),

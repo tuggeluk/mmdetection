@@ -55,9 +55,9 @@ class HRFPN_upsamp(nn.Module):
             act_cfg=None)
 
         #diff from standard
-        self.up_scale = nn.ModuleList()
-        for i in range(self.num_ins):
-            self.up_scale.append(nn.ConvTranspose2d(out_channels,out_channels,kernel_size=3,stride=2))
+        # self.up_scale = nn.ModuleList()
+        # for i in range(self.num_ins):
+        #     self.up_scale.append(nn.ConvTranspose2d(out_channels, out_channels, kernel_size=3, stride=2))
         #end diff from standard
 
         self.fpn_convs = nn.ModuleList()
@@ -102,8 +102,8 @@ class HRFPN_upsamp(nn.Module):
         outputs = []
 
         #diff from standard
-        for i in range(self.num_ins):
-            outs[i] = self.up_scale[i](outs[i])
+        # for i in range(self.num_ins):
+        #     outs[i] = self.up_scale[i](outs[i])
         #end diff from standard
 
         for i in range(self.num_outs):
