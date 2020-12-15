@@ -121,7 +121,7 @@ train_pipeline = [
 total_epochs = 1000
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = './work_dirs/dsv2_fcos_hrnet_hirez'
+work_dir = './work_dirs/dsv2_fcos_hrnet_hirez_w32'
 load_from = None
 resume_from = None
 workflow = [('train', 1)]
