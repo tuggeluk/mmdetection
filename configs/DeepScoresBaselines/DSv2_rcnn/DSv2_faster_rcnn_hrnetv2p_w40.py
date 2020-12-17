@@ -110,13 +110,13 @@ train_cfg = dict(
 test_cfg = dict(
     rpn=dict(
         nms_across_levels=False,
-        nms_pre=1000,
-        nms_post=1000,
-        max_num=1000,
+        nms_pre=6000,
+        nms_post=4000,
+        max_num=4000,
         nms_thr=0.7,
         min_bbox_size=0),
     rcnn=dict(
-        score_thr=0.05, nms=dict(type='nms', iou_thr=0.5), max_per_img=1000)
+        score_thr=0.05, nms=dict(type='nms', iou_thr=0.5), max_per_img=2000)
     # soft-nms is also supported for rcnn testing
     # e.g., nms=dict(type='soft_nms', iou_thr=0.5, min_score=0.05)
 )
@@ -153,8 +153,8 @@ test_pipeline = [
         img_scale=(2700, 3828),
         flip=False,
         transforms=[
-#           dict(type='RandomCrop', crop_size=(200, 200)),
-            dict(type='Resize',  keep_ratio=True),
+            dict(type='Resize',  img_scale=(2700, 3828)),
+            dict(type='RandomCrop', crop_size=(2700, 3000)),
             dict(type='RandomFlip', flip_ratio=0.0),
             dict(type='Normalize', **img_norm_cfg),
             dict(type='Pad', size_divisor=32),
@@ -194,7 +194,7 @@ lr_config = dict(
     warmup_iters=500,
     warmup_ratio=1.0 / 3,
     step=[8, 11])
-checkpoint_config = dict(interval=1)
+checkpoint_config = dict(interval=10)
 # yapf:disable
 log_config = dict(
     interval=100,
